@@ -1,0 +1,17 @@
+{% extends 'railSimulator/base.html' %}
+
+{% block content %}
+    <h1>RAILSYS</h1>
+    <div class="container">
+        <div class="panel">
+            <h2>Timetable Generator</h2>
+            <label>Trip (Nº of stations): <input type="number" id="trip"></label>
+            <label>Start Hour (HH:mm): <input type="text" id="startHour"></label>
+            <label>End Hour (HH:mm): <input type="text" id="endHour"></label>
+            <label>Lines: <input type="number" id="lines"></label>
+            <label>Security Margin (minutes): <input type="number" id="secuMargin"></label>
+            <button onclick="generateTT()">Submit</button>
+            <div id="ttOutput"></div>
+        </div>
+    </div>
+{% endblock %}

@@ -1,0 +1,13 @@
+#Dirs to not sync with the repository
+.pytest_cache/
+.vscode/
+Project_TFG/
+tfg_env/
+src/__pycache__/
+src/test/__pycache__/
+railSim/railSimulator/__pycache__/
+railSim/railSim/__pycache__/
+railSim/railSimulator/migrations/__pycache__/ 
+
+#Files to not sync with the repository
+.coverage

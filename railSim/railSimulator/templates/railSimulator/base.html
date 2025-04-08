@@ -1,0 +1,22 @@
+<!-- Cabecera -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <title>RailSys (TEMP)</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <h1>Enlaces</h1>
+    <ul>
+        <li><a href="{% url 'home' %}">Menu</a></li>
+        <li><a href="{% url 'simulator' %}">Simulation</a></li>
+    </ul>
+
+    <!-- Contenido -->
+    {% block content %}{% endblock %}
+</body>
+</html>
+
