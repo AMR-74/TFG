@@ -5,13 +5,15 @@
     <div class="container">
         <div class="panel">
             <h2>Timetable Generator</h2>
-            <label>Trip (Nº of stations): <input type="number" id="trip"></label>
-            <label>Start Hour (HH:mm): <input type="text" id="startHour"></label>
-            <label>End Hour (HH:mm): <input type="text" id="endHour"></label>
-            <label>Lines: <input type="number" id="lines"></label>
-            <label>Security Margin (minutes): <input type="number" id="secuMargin"></label>
-            <button onclick="generateTT()">Submit</button>
-            <div id="ttOutput"></div>
+            <form method="post">
+                {% csrf_token %}
+                <label>Trip (Nº of stations): <input type="number" id="trip" name="trip"></label>
+                <label>Start Hour (HH:mm): <input type="text" id="startHour" name="startHour"></label>
+                <label>End Hour (HH:mm): <input type="text" id="endHour" name="endHour"></label>
+                <label>Lines: <input type="number" id="lines" name="lines"></label>
+                <label>Security Margin (minutes): <input type="number" id="secuMargin" name="secuMargin"></label>
+                <button type="submit">Submit</button>
+            </form>
         </div>
     </div>
 {% endblock %}
