@@ -1,5 +1,6 @@
 import random as ran
 import src.dbLibrary as dbl
+import sys
 import re
 from datetime import timedelta, datetime
 
@@ -7,14 +8,14 @@ from datetime import timedelta, datetime
 parameters = {
     "format": r"^(?:[01]\d|2[0-3]):[0-5]\d$",
     "formatHour": "%H:%M",
-    "trip": 10,
-    "upperTimeLimit": "06:30",
-    "lowerTimeLimit": "23:00",
-    "nLines": 7,
+    "trip": None,
+    "upperTimeLimit": None ,
+    "lowerTimeLimit": None,
+    "nLines": None,
     "hourMargin": 0,
     "lowerMinuteMargin": 15,
-    "higherMinuteMargin": 45,
-    "securityMargin": 15
+    "higherMinuteMargin": 20,
+    "securityMargin": None
 }
 
 # SEED
@@ -30,6 +31,9 @@ def checkFormat(format,name):
     
     else:
         return False
+
+def visualHourFormat(hour):
+    return hour.strftime(parameters["formatHour"])
 
 def generateTrip(n):
     start = 65
@@ -48,17 +52,24 @@ def hourFormat(hour):
     return datetime.strptime(hour, parameters["formatHour"])
 
 def generateLines(route):
-    for n in range(parameters["nLines"]):
-        changeSeed()
-        stationOrigin = ran.randint(ord(route[0]), ord(route[1]))
-        stationDestination = ran.randint(stationOrigin, ord(route[1]))
+    estaciones = [chr(i) for i in range(ord(route[0]), ord(route[1]) + 1)]
+    posibles_lineas = []
 
-        if stationOrigin == stationDestination:
-            raise ValueError("Error de simulación, línea sin movimiento")
-    
-        else:
-            line = (chr(stationOrigin), chr(stationDestination))
-            dbl.dbInputsTL(n+1, line, [], [], 'TFG')   
+    # Generar todas las combinaciones posibles A → B, B → C, etc. sin repeticiones ni simetrías
+    for i in range(len(estaciones)):
+        for j in range(i + 1, len(estaciones)):
+            posibles_lineas.append((estaciones[i], estaciones[j]))
+
+    # Barajar las posibles líneas
+    ran.shuffle(posibles_lineas)
+
+    total_a_generar = min(parameters["nLines"], len(posibles_lineas))
+    generadas = posibles_lineas[:total_a_generar]
+
+    print(f"[DEBUG] Líneas generadas: {generadas}", flush=True)
+
+    for idx, line in enumerate(generadas):
+        dbl.dbInputsTL(idx + 1, line, [], [], 'TFG')
     
 def setTimeLimit(format):
     if checkFormat(format, parameters["upperTimeLimit"]) == False:
@@ -82,7 +93,8 @@ def marginsTimetable(opt:int, times:list, line:int) -> list:
     elif opt == 2:
         return([times[i] + timedelta(minutes=parameters["securityMargin"]) for i in range(0, len(times))])
 
-def generateTimetable(limits:tuple, trip:tuple):
+def generateTimetable(limits:tuple, trip:tuple):    
+    print("[DEBUG] Entrando en generateTimetable 🚂")
     lines = dbl.selectData(dbl.selectCollection("trainLines",'TFG'), "Linea")
     stations = dbl.selectData(dbl.selectCollection("trainLines", 'TFG'), "Stations")
     timeTable = dbl.selectData(dbl.selectCollection("trainLines", 'TFG'), "Timetable")
@@ -92,7 +104,11 @@ def generateTimetable(limits:tuple, trip:tuple):
     tt = stationsDefault(trip)
     counter = 0
     
+    print(f"[DEBUG] Líneas disponibles: {used_lines}", flush=True)
+    
     while len(used_lines) > 0:
+        print(f"[DEBUG] Iterando línea. Quedan: {len(used_lines)}", flush=True)
+
         changeSeed()
         horas_salida = []
         horas_llegada = []
@@ -119,7 +135,7 @@ def generateTimetable(limits:tuple, trip:tuple):
                             changeSeed()
                             departure = limits[0] + timedelta(minutes=parameters["securityMargin"]) + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                   parameters["higherMinuteMargin"]))
-                            arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
+                            arrival = departure + timedelta(minutes=parameters["securityMargin"]) + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                                                                 parameters["higherMinuteMargin"]))
                     
                     counter = 0
@@ -127,9 +143,9 @@ def generateTimetable(limits:tuple, trip:tuple):
                     horas_llegada.append(arrival)
 
                 else:
-                    departure = horas_llegada[len(horas_llegada)-1] + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
+                    departure = horas_llegada[len(horas_llegada)-1] + timedelta(minutes=parameters["securityMargin"]) + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                                     parameters["higherMinuteMargin"]))
-                    arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
+                    arrival = departure + timedelta(minutes=parameters["securityMargin"]) + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                                                         parameters["higherMinuteMargin"]))
 
                     while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
@@ -139,9 +155,9 @@ def generateTimetable(limits:tuple, trip:tuple):
                         
                         else:
                             changeSeed()
-                            departure = horas_llegada[len(horas_llegada)-1] + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
+                            departure = horas_llegada[len(horas_llegada)-1] + timedelta(minutes=parameters["securityMargin"]) + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                                             parameters["higherMinuteMargin"]))
-                            arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
+                            arrival = departure + timedelta(minutes=parameters["securityMargin"]) + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                                                                 parameters["higherMinuteMargin"]))
 
                     counter = 0
@@ -162,9 +178,9 @@ def generateTimetable(limits:tuple, trip:tuple):
                     referenceHour = max(tt[chr(station)])
                         
                     if len(horas_llegada) == 0 or referenceHour > horas_llegada[len(horas_llegada) - 1]:
-                        departure = referenceHour + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
+                        departure = referenceHour + timedelta(minutes=parameters["securityMargin"]) + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                   parameters["higherMinuteMargin"]))
-                        arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
+                        arrival = departure + timedelta(minutes=parameters["securityMargin"]) + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                                                             parameters["higherMinuteMargin"]))
 
                         while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
@@ -174,9 +190,9 @@ def generateTimetable(limits:tuple, trip:tuple):
                         
                             else:
                                 changeSeed()
-                                departure = referenceHour + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
+                                departure = referenceHour + timedelta(minutes=parameters["securityMargin"]) + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                           parameters["higherMinuteMargin"]))
-                                arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
+                                arrival = departure + timedelta(minutes=parameters["securityMargin"]) + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                                                                     parameters["higherMinuteMargin"]))
 
                         counter = 0
@@ -184,9 +200,9 @@ def generateTimetable(limits:tuple, trip:tuple):
                         horas_llegada.append(arrival)
 
                     else:
-                        departure = horas_llegada[len(horas_llegada)-1] + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
+                        departure = horas_llegada[len(horas_llegada)-1] + timedelta(minutes=parameters["securityMargin"]) + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                                         parameters["higherMinuteMargin"]))
-                        arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
+                        arrival = departure + timedelta(minutes=parameters["securityMargin"]) + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                                                             parameters["higherMinuteMargin"]))
 
                         while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
@@ -196,9 +212,9 @@ def generateTimetable(limits:tuple, trip:tuple):
                         
                             else:
                                 changeSeed()
-                                departure = horas_llegada[len(horas_llegada)-1] + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
+                                departure = horas_llegada[len(horas_llegada)-1] + timedelta(minutes=parameters["securityMargin"]) + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                                                 parameters["higherMinuteMargin"]))
-                                arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
+                                arrival = departure + timedelta(minutes=parameters["securityMargin"]) + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                                                                     parameters["higherMinuteMargin"]))
 
                         counter = 0
@@ -210,7 +226,7 @@ def generateTimetable(limits:tuple, trip:tuple):
                     if len(horas_salida) == 0:
                         departure = limits[0] + timedelta(minutes=parameters["securityMargin"]) + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                                                                 parameters["higherMinuteMargin"]))
-                        arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
+                        arrival = departure + timedelta(minutes=parameters["securityMargin"]) +  timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                                                             parameters["higherMinuteMargin"]))
 
                         while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
@@ -222,7 +238,7 @@ def generateTimetable(limits:tuple, trip:tuple):
                                 changeSeed()
                                 departure = limits[0] + timedelta(minutes=parameters["securityMargin"]) + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                                                                         parameters["higherMinuteMargin"]))
-                                arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
+                                arrival = departure + timedelta(minutes=parameters["securityMargin"]) + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                                                                     parameters["higherMinuteMargin"]))
 
                         counter = 0
@@ -230,9 +246,9 @@ def generateTimetable(limits:tuple, trip:tuple):
                         horas_llegada.append(arrival)
 
                     else:
-                        departure = horas_llegada[len(horas_llegada)-1] + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
+                        departure = horas_llegada[len(horas_llegada)-1] + timedelta(minutes=parameters["securityMargin"]) + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                                         parameters["higherMinuteMargin"]))
-                        arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
+                        arrival = departure + timedelta(minutes=parameters["securityMargin"]) + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                                                             parameters["higherMinuteMargin"]))
 
                         while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
@@ -242,9 +258,9 @@ def generateTimetable(limits:tuple, trip:tuple):
                         
                             else:
                                 changeSeed()
-                                departure = horas_llegada[len(horas_llegada)-1] + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
+                                departure = horas_llegada[len(horas_llegada)-1] + timedelta(minutes=parameters["securityMargin"]) + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                                                 parameters["higherMinuteMargin"]))
-                                arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
+                                arrival = departure + timedelta(minutes=parameters["securityMargin"]) + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
                                                                                                                                     parameters["higherMinuteMargin"]))
 
                         counter = 0             
@@ -256,7 +272,31 @@ def generateTimetable(limits:tuple, trip:tuple):
         current_timeTable.append(horas_salida)
         current_timeTable.append(horas_llegada)
         valid_timeTables.append(current_timeTable)
-        dbl.modifyEntry(dbl.selectCollection("trainLines", 'TFG'), {"Linea": current_line}, {"Timetable": current_timeTable})
-        dbl.modifyEntry(dbl.selectCollection("trainLines", 'TFG'), {"Linea": current_line}, {"Timetable_Margins": [marginsTimetable(1, horas_salida, current_line),
-                                                                                                            marginsTimetable(2, horas_llegada, current_line)]})
+
+        print(f"[DEBUG] Modificando linea: {current_line}", flush=True)
+        print(f"[DEBUG] Nuevo Timetable: {current_timeTable}", flush=True)
+
+        try:
+            result1 = dbl.modifyEntry(
+            dbl.selectCollection("trainLines", 'TFG'),
+                    {"Linea": current_line},
+                    {"Timetable": current_timeTable}
+            )
+    
+            print(f"[DEBUG] Resultado modificación Timetable: {result1}", flush=True)
+
+            result2 = dbl.modifyEntry(
+                dbl.selectCollection("trainLines", 'TFG'),
+                    {"Linea": current_line},
+                    {
+                        "Timetable_Margins": [
+                        marginsTimetable(1, horas_salida, current_line),
+                        marginsTimetable(2, horas_llegada, current_line)
+                        ]
+                    }
+                )
+            print(f"[DEBUG] Resultado modificación Margins: {result2}", flush=True)
+
+        except Exception as e:
+            print(f"[ERROR] Fallo modificando MongoDB para {current_line}: {e}", flush=True)
 

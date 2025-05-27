@@ -1,9 +1,10 @@
 {% extends 'railSimulator/base.html' %}
+{% load static %}
 
 {% block content %}
     <h1>RAILSYS</h1>
     <div class="container">
-        <div class="panel">
+        <div class="panel" style="margin-bottom: 40px;">
             <h2>Timetable Generator</h2>
             <form method="post">
                 {% csrf_token %}
@@ -16,4 +17,61 @@
             </form>
         </div>
     </div>
+    
+    <div style="display: flex; align-items: flex-start; gap: 20px;">
+    <!-- Tabla -->
+    <div class="table">
+        <table border="1">
+            <thead>
+                <tr>
+                    <th>Linea</th>
+                    <th>Stations</th>
+                    <th>Departure Times</th>
+                    <th>Arrival Times</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for line in train_lines %}
+                <tr>
+                    <td>{{ line.Linea }}</td>
+                    <td>
+                        {% if line.Stations %}
+                            {{ line.Stations|join:", " }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if line.Departures %}
+                            <ul>
+                            {% for hora in line.Departures %}
+                                <li>{{ forloop.counter }}. {{ hora }}</li>
+                            {% endfor %}
+                            </ul>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if line.Arrivals %}
+                            <ul>
+                            {% for hora in line.Arrivals %}
+                                <li>{{ forloop.counter }}. {{ hora }}</li>
+                            {% endfor %}
+                            </ul>
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Imagen a la derecha -->
+    <div class="diagram" style="max-width: 1500px;">
+        <img src="{% static 'img/diagrama.png' %}?v={{ timestamp }}" alt="Diagrama" style="width: 100%; height: auto; border: 1px solid #ccc;">
+    </div>
+</div>
 {% endblock %}

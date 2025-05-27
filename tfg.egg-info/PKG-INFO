@@ -1,0 +1,11 @@
+Metadata-Version: 2.4
+Name: tfg
+Version: 0.1
+Requires-Dist: Django>=4.2
+Requires-Dist: pymongo
+Requires-Dist: asgiref
+Requires-Dist: dnspython
+Requires-Dist: pip>=25.0.1
+Requires-Dist: sqlparse
+Requires-Dist: tzdata
+Dynamic: requires-dist

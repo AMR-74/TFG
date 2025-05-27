@@ -1,26 +1,40 @@
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
+from src import simLibrary
+from src import dbLibrary as dbl
+import time
+from datetime import datetime
 
 # Create your views here.
 def simulator(request):
     if request.method == "POST":
-        trip = request.POST.get("trip")
+        trip_form = request.POST.get("trip")
         startHour = request.POST.get("startHour")
         endHour = request.POST.get("endHour")
         lines = request.POST.get("lines")
         secuMargin = request.POST.get("secuMargin")
 
-        request.session['trip'] = trip
+        request.session['trip'] = trip_form
         request.session['startHour'] = startHour
         request.session['endHour'] = endHour
         request.session['lines'] = lines
         request.session['secuMargin'] = secuMargin
 
-        print(f"[DEBUG] T = {trip}")
-        print(f"[DEBUG] SH = {startHour}")
-        print(f"[DEBUG] EH = {endHour}")
-        print(f"[DEBUG] L = {lines}")
-        print(f"[DEBUG] SC = {secuMargin}")
+        simLibrary.parameters["trip"] = int(trip_form)
+        simLibrary.parameters["upperTimeLimit"] = startHour
+        simLibrary.parameters["lowerTimeLimit"] = endHour
+        simLibrary.parameters["nLines"] = int(lines)
+        simLibrary.parameters["securityMargin"] = int(secuMargin)
+
+        print(simLibrary.parameters)
+
+        limits = simLibrary.setTimeLimit(simLibrary.parameters["format"])
+        trip_tuple = simLibrary.generateTrip(simLibrary.parameters["trip"])
+        dbl.deleteCollection(dbl.selectCollection("trainLines",'TFG'))
+        simLibrary.generateLines(trip_tuple)
+        simLibrary.generateTimetable(limits, trip_tuple)
+
+        time.sleep(2)
 
         return redirect('simulator')
     
@@ -30,13 +44,42 @@ def simulator(request):
     lines = request.session.get('lines')
     secuMargin = request.session.get('secuMargin')
 
+    train_lines_data_raw = list(dbl.selectCollection("trainLines", "TFG").find({}, {"_id": 0}))  # recogemos todos los datos de trainLines
+
+    train_lines_data = []
+
+    for line in train_lines_data_raw:
+    # Prepara la estructura
+        formatted_departures = []
+        formatted_arrivals = []
+        
+        if "Timetable_Margins" in line and line["Timetable_Margins"]:
+            departures = line["Timetable_Margins"][0]
+            arrivals = line["Timetable_Margins"][1]
+        
+            for hora in departures:
+                formatted_departures.append(simLibrary.visualHourFormat(hora))
+        
+            for hora in arrivals:
+                formatted_arrivals.append(simLibrary.visualHourFormat(hora))
+
+        train_lines_data.append({
+            "Linea": line.get("Linea"),
+            "Stations": line.get("Stations"),
+            "Timetable": line.get("Timetable"),
+            "Departures": formatted_departures,
+            "Arrivals": formatted_arrivals
+        })
+
     return render(request, "railSimulator/simulation.html", 
     {
         "trip": trip, 
         "startHour": startHour,
         "endHour": endHour,
         "lines": lines,
-        "secuMargin": secuMargin
+        "secuMargin": secuMargin,
+        "train_lines": train_lines_data,
+        "timestamp": datetime.now().timestamp()
     })
 
 def home(request):
