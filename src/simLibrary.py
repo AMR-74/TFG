@@ -1,8 +1,9 @@
 import random as ran
 import src.dbLibrary as dbl
-import sys
+import src.generateDiagram as gd
 import re
 from datetime import timedelta, datetime
+
 
 # GLOBAL VARIABLES
 parameters = {
@@ -13,8 +14,8 @@ parameters = {
     "lowerTimeLimit": None,
     "nLines": None,
     "hourMargin": 0,
-    "lowerMinuteMargin": 15,
-    "higherMinuteMargin": 20,
+    "lowerMinuteMargin": 10,
+    "higherMinuteMargin": 40,
     "securityMargin": None
 }
 
@@ -92,6 +93,7 @@ def marginsTimetable(opt:int, times:list, line:int) -> list:
         
     elif opt == 2:
         return([times[i] + timedelta(minutes=parameters["securityMargin"]) for i in range(0, len(times))])
+    
 
 def generateTimetable(limits:tuple, trip:tuple):    
     print("[DEBUG] Entrando en generateTimetable 🚂")
@@ -101,6 +103,7 @@ def generateTimetable(limits:tuple, trip:tuple):
     used_lines = lines.copy()
     valid_timeTables = []
     valid_lines = []
+    valid_stations = []
     tt = stationsDefault(trip)
     counter = 0
     
@@ -128,7 +131,7 @@ def generateTimetable(limits:tuple, trip:tuple):
                     
                     while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
                         counter += 1
-                        if counter > 10:
+                        if counter > 200:
                             raise ValueError("Simulación fallida.")
                         
                         else:
@@ -150,7 +153,7 @@ def generateTimetable(limits:tuple, trip:tuple):
 
                     while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
                         counter += 1
-                        if counter > 10:
+                        if counter > 200:
                             raise ValueError("Simulación fallida.")
                         
                         else:
@@ -169,8 +172,8 @@ def generateTimetable(limits:tuple, trip:tuple):
             current_timeTable:list = timeTable[lines.index(current_line)]
             current_stations:list = stations[lines.index(current_line)]
             
-            for station in range(ord(stations[lines.index(valid_lines[len(valid_lines) - 1])][0]), ord(stations[lines.index(valid_lines[len(valid_lines) - 1])][1])):
-                tt[chr(station)].append(valid_timeTables[valid_lines.index(valid_lines[len(valid_lines) - 1])][1][ord(stations[lines.index(valid_lines[len(valid_lines) - 1])][1]) - station - 1])
+            for station in range(ord(valid_stations[0]), ord(valid_stations[1])):
+                tt[chr(station)].append(valid_timeTables[-1][1][station - ord(valid_stations[0])])
             
             for station in range(ord(current_stations[0]), ord(current_stations[1])):
                                     
@@ -185,7 +188,7 @@ def generateTimetable(limits:tuple, trip:tuple):
 
                         while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
                             counter += 1
-                            if counter > 10:
+                            if counter > 200:
                                 raise ValueError("Simulación fallida.")
                         
                             else:
@@ -207,7 +210,7 @@ def generateTimetable(limits:tuple, trip:tuple):
 
                         while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
                             counter += 1
-                            if counter > 10:
+                            if counter > 200:
                                 raise ValueError("Simulación fallida.")
                         
                             else:
@@ -231,7 +234,7 @@ def generateTimetable(limits:tuple, trip:tuple):
 
                         while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
                             counter += 1
-                            if counter > 10:
+                            if counter > 200:
                                 raise ValueError("Simulación fallida.")
                         
                             else:
@@ -253,7 +256,7 @@ def generateTimetable(limits:tuple, trip:tuple):
 
                         while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
                             counter += 1
-                            if counter > 10:
+                            if counter > 200:
                                 raise ValueError("Simulación fallida.")
                         
                             else:
@@ -272,6 +275,7 @@ def generateTimetable(limits:tuple, trip:tuple):
         current_timeTable.append(horas_salida)
         current_timeTable.append(horas_llegada)
         valid_timeTables.append(current_timeTable)
+        valid_stations = [current_stations[0], current_stations[1]]
 
         print(f"[DEBUG] Modificando linea: {current_line}", flush=True)
         print(f"[DEBUG] Nuevo Timetable: {current_timeTable}", flush=True)
@@ -299,4 +303,7 @@ def generateTimetable(limits:tuple, trip:tuple):
 
         except Exception as e:
             print(f"[ERROR] Fallo modificando MongoDB para {current_line}: {e}", flush=True)
+
+    gd.generateDiagram()
+
 
