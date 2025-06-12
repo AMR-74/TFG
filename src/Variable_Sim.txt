@@ -1,0 +1,56 @@
+#=== OPT1 ===#
+
+#=== 4 lineas en max estaciones ===#
+
+def generateLines(route):
+    for idx in range(parameters["nLines"]):
+        dbl.dbInputsTL(idx + 1, route, [], [], 'TFG', [])
+
+
+#=== OPT2 ===#
+
+def generateLines(route):
+    estaciones = [chr(i) for i in range(ord(route[0]), ord(route[1]) + 1)]
+    posibles_lineas = []
+
+    # Generar todas las combinaciones posibles A → B, B → C, etc. sin repeticiones ni simetrías
+    for i in range(len(estaciones)):
+        for j in range(i + 1, len(estaciones)):
+            posibles_lineas.append((estaciones[i], estaciones[j]))
+
+    # Barajar las posibles líneas
+    ran.shuffle(posibles_lineas)
+
+    total_a_generar = min(parameters["nLines"], len(posibles_lineas))
+    generadas = posibles_lineas[:total_a_generar]
+
+    print(f"[DEBUG] Líneas generadas: {generadas}", flush=True)
+
+    for idx, line in enumerate(generadas):
+        dbl.dbInputsTL(idx + 1, line, [], [], 'TFG', [])
+
+#=== OPT3 ===#
+def generateLines(route, min_stations_per_line=3):
+    estaciones = [chr(i) for i in range(ord(route[0]), ord(route[1]) + 1)]
+    posibles_lineas = []
+
+    # Generar TODAS las líneas posibles que tengan al menos `min_stations_per_line` estaciones
+    for i in range(len(estaciones)):
+        for j in range(i + min_stations_per_line - 1, len(estaciones)):
+            posibles_lineas.append((estaciones[i], estaciones[j]))
+
+    if not posibles_lineas:
+        print(f"[ERROR] No hay suficientes estaciones para formar líneas de mínimo {min_stations_per_line} estaciones.")
+        return
+
+    generadas = []
+    total_a_generar = parameters["nLines"]
+
+    # Permitir repeticiones de líneas
+    while len(generadas) < total_a_generar:
+        generadas.append(ran.choice(posibles_lineas))
+
+    print(f"[DEBUG] Líneas generadas: {generadas}", flush=True)
+
+    for idx, line in enumerate(generadas):
+        dbl.dbInputsTL(idx + 1, line, [], [], 'TFG', [])

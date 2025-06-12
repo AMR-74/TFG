@@ -40,8 +40,8 @@ def generateDiagram(outputPath="./railSim/railSimulator/static/img/diagrama.png"
         "#7b4173"   # púrpura intenso
     ]
     rangeStations = 0
-    stationEnd = 0
-    stationOrg = 0
+    stationOrg = float('inf')
+    stationEnd = float('-inf')
     indice = 0
     
     if os.path.exists("./railSim/railSimulator/static/img/diagrama.png"):
@@ -81,11 +81,8 @@ def generateDiagram(outputPath="./railSim/railSimulator/static/img/diagrama.png"
                 segments.append(seg)
             
 
-                if ord(stations[0]) < 65 or ord(stations[0]) < stationOrg:
-                    stationOrg = ord(stations[0])
-
-                if ord(stations[1]) < 65 or ord(stations[1]) > stationEnd:
-                    stationEnd = ord(stations[1])
+                stationOrg = min(stationOrg, ord(stations[0]))
+                stationEnd = max(stationEnd, ord(stations[-1]))
 
                 rangeStations = stationEnd - stationOrg
 

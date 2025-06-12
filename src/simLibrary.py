@@ -15,7 +15,7 @@ parameters = {
     "nLines": None,
     "hourMargin": 0,
     "lowerMinuteMargin": 10,
-    "higherMinuteMargin": 40,
+    "higherMinuteMargin": 30,
     "securityMargin": None
 }
 
@@ -26,8 +26,8 @@ ran.seed(ran.randint(1,300))
 def changeSeed():
    ran.seed(ran.randint(1,500))
 
-def checkFormat(format,name):
-    if re.match(format, name):
+def checkFormat(formatReference,name):
+    if re.match(formatReference, name):
         return True
     
     else:
@@ -49,41 +49,47 @@ def generateTrip(n):
 def stationsDefault(trip:list) -> dict:
     return {chr(i): [] for i in range(ord(trip[0]), ord(trip[1]) + 1)}
 
-def hourFormat(hour):
-    return datetime.strptime(hour, parameters["formatHour"])
+def hourFormat(hour, formatHour):
+    return datetime.strptime(hour, formatHour)
 
-def generateLines(route):
+def generateLines(route, min_stations_per_line=4):
     estaciones = [chr(i) for i in range(ord(route[0]), ord(route[1]) + 1)]
     posibles_lineas = []
 
-    # Generar todas las combinaciones posibles A → B, B → C, etc. sin repeticiones ni simetrías
+    # Generar TODAS las líneas posibles que tengan al menos `min_stations_per_line` estaciones
     for i in range(len(estaciones)):
-        for j in range(i + 1, len(estaciones)):
+        for j in range(i + min_stations_per_line, len(estaciones)):
             posibles_lineas.append((estaciones[i], estaciones[j]))
 
-    # Barajar las posibles líneas
-    ran.shuffle(posibles_lineas)
+    if not posibles_lineas:
+        print(f"[ERROR] No hay suficientes estaciones para formar líneas de mínimo {min_stations_per_line} estaciones.")
+        return
 
-    total_a_generar = min(parameters["nLines"], len(posibles_lineas))
-    generadas = posibles_lineas[:total_a_generar]
+    generadas = []
+    total_a_generar = parameters["nLines"]
+
+    # Permitir repeticiones de líneas
+    while len(generadas) < total_a_generar:
+        generadas.append(ran.choice(posibles_lineas))
 
     print(f"[DEBUG] Líneas generadas: {generadas}", flush=True)
 
     for idx, line in enumerate(generadas):
-        dbl.dbInputsTL(idx + 1, line, [], [], 'TFG')
+        dbl.dbInputsTL(idx + 1, line, [], [], 'TFG', [])
+
     
-def setTimeLimit(format):
-    if checkFormat(format, parameters["upperTimeLimit"]) == False:
+def setTimeLimit(formatReference):
+    if checkFormat(formatReference, parameters["upperTimeLimit"]) == False:
         raise ValueError("Error en el formato de hora introducido.")
     
     else:
-        start = hourFormat(parameters["upperTimeLimit"])
+        start = hourFormat(parameters["upperTimeLimit"], parameters["formatHour"])
     
-    if checkFormat(format, parameters["lowerTimeLimit"]) == False:
+    if checkFormat(formatReference, parameters["lowerTimeLimit"]) == False:
         raise ValueError("Error en el formato de hora introducido.")
     
     else:
-        end = hourFormat(parameters["lowerTimeLimit"])
+        end = hourFormat(parameters["lowerTimeLimit"], parameters["formatHour"])
 
     return(start, end)
 
@@ -131,7 +137,7 @@ def generateTimetable(limits:tuple, trip:tuple):
                     
                     while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
                         counter += 1
-                        if counter > 200:
+                        if counter > 500000:
                             raise ValueError("Simulación fallida.")
                         
                         else:
@@ -153,7 +159,7 @@ def generateTimetable(limits:tuple, trip:tuple):
 
                     while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
                         counter += 1
-                        if counter > 200:
+                        if counter > 500000:
                             raise ValueError("Simulación fallida.")
                         
                         else:
@@ -188,7 +194,7 @@ def generateTimetable(limits:tuple, trip:tuple):
 
                         while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
                             counter += 1
-                            if counter > 200:
+                            if counter > 500000:
                                 raise ValueError("Simulación fallida.")
                         
                             else:
@@ -210,7 +216,7 @@ def generateTimetable(limits:tuple, trip:tuple):
 
                         while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
                             counter += 1
-                            if counter > 200:
+                            if counter > 500000:
                                 raise ValueError("Simulación fallida.")
                         
                             else:
@@ -234,7 +240,7 @@ def generateTimetable(limits:tuple, trip:tuple):
 
                         while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
                             counter += 1
-                            if counter > 200:
+                            if counter > 500000:
                                 raise ValueError("Simulación fallida.")
                         
                             else:
@@ -256,7 +262,7 @@ def generateTimetable(limits:tuple, trip:tuple):
 
                         while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
                             counter += 1
-                            if counter > 200:
+                            if counter > 500000:
                                 raise ValueError("Simulación fallida.")
                         
                             else:
