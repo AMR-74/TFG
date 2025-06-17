@@ -1,7 +1,0 @@
-Django>=4.2
-pymongo
-asgiref
-dnspython
-pip>=25.0.1
-sqlparse
-tzdata

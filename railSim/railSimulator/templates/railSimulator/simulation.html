@@ -11,7 +11,9 @@
                 <label>Trip (Nº of stations): <input type="number" id="trip" name="trip"></label>
                 <label>Start Hour (HH:mm): <input type="text" id="startHour" name="startHour"></label>
                 <label>End Hour (HH:mm): <input type="text" id="endHour" name="endHour"></label>
-                <label>Lines: <input type="number" id="lines" name="lines"></label>
+                <label>Lines: <input type="number" id="lines" name="lines"></label><br>
+                <label>Lower minute margin (minutes): <input type="number" id="lMargin" name="lMargin"></label>
+                <label>Higer minute margin (minutes): <input type="number" id="hMargin" name="hMargin"></label>
                 <label>Security Margin (minutes): <input type="number" id="secuMargin" name="secuMargin"></label>
                 <button type="submit">Submit</button>
             </form>
@@ -20,7 +22,8 @@
     
     <div style="display: flex; align-items: flex-start; gap: 20px;">
     <!-- Tabla -->
-    <div class="table">
+    <details class="table">
+        <summary style="font-weight: bold; font-size: 18px; cursor: pointer;">Ver tabla de horarios</summary>
         <table border="1">
             <thead>
                 <tr>
@@ -67,7 +70,7 @@
                 {% endfor %}
             </tbody>
         </table>
-    </div>
+    </details>
 
     <!-- Imagen a la derecha -->
     <div class="diagram" style="max-width: 1500px;">

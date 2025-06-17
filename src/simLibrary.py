@@ -16,7 +16,8 @@ parameters = {
     "hourMargin": 0,
     "lowerMinuteMargin": 10,
     "higherMinuteMargin": 30,
-    "securityMargin": None
+    "securityMargin": None,
+    "MaxIterations": 500000
 }
 
 # SEED
@@ -137,9 +138,10 @@ def generateTimetable(limits:tuple, trip:tuple):
                     
                     while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
                         counter += 1
-                        if counter > 500000:
-                            raise ValueError("Simulación fallida.")
-                        
+                        if counter > parameters["MaxIterations"]:
+                            gd.generateDiagram()
+                            return
+                                                    
                         else:
                             changeSeed()
                             departure = limits[0] + timedelta(minutes=parameters["securityMargin"]) + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
@@ -159,9 +161,10 @@ def generateTimetable(limits:tuple, trip:tuple):
 
                     while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
                         counter += 1
-                        if counter > 500000:
-                            raise ValueError("Simulación fallida.")
-                        
+                        if counter > parameters["MaxIterations"]:
+                            gd.generateDiagram()
+                            return
+                                                    
                         else:
                             changeSeed()
                             departure = horas_llegada[len(horas_llegada)-1] + timedelta(minutes=parameters["securityMargin"]) + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
@@ -194,8 +197,9 @@ def generateTimetable(limits:tuple, trip:tuple):
 
                         while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
                             counter += 1
-                            if counter > 500000:
-                                raise ValueError("Simulación fallida.")
+                            if counter > parameters["MaxIterations"]:
+                                gd.generateDiagram()
+                                return
                         
                             else:
                                 changeSeed()
@@ -216,8 +220,9 @@ def generateTimetable(limits:tuple, trip:tuple):
 
                         while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
                             counter += 1
-                            if counter > 500000:
-                                raise ValueError("Simulación fallida.")
+                            if counter > parameters["MaxIterations"]:
+                                gd.generateDiagram()
+                                return
                         
                             else:
                                 changeSeed()
@@ -240,9 +245,10 @@ def generateTimetable(limits:tuple, trip:tuple):
 
                         while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
                             counter += 1
-                            if counter > 500000:
-                                raise ValueError("Simulación fallida.")
-                        
+                            if counter > parameters["MaxIterations"]:
+                                gd.generateDiagram()
+                                return
+                                                        
                             else:
                                 changeSeed()
                                 departure = limits[0] + timedelta(minutes=parameters["securityMargin"]) + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
@@ -262,8 +268,9 @@ def generateTimetable(limits:tuple, trip:tuple):
 
                         while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
                             counter += 1
-                            if counter > 500000:
-                                raise ValueError("Simulación fallida.")
+                            if counter > parameters["MaxIterations"]:
+                                gd.generateDiagram()
+                                return
                         
                             else:
                                 changeSeed()

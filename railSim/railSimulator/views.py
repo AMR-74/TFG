@@ -13,17 +13,23 @@ def simulator(request):
         endHour = request.POST.get("endHour")
         lines = request.POST.get("lines")
         secuMargin = request.POST.get("secuMargin")
+        lMargin = request.POST.get("lMargin")
+        hMargin = request.POST.get("hMargin")
 
         request.session['trip'] = trip_form
         request.session['startHour'] = startHour
         request.session['endHour'] = endHour
         request.session['lines'] = lines
+        request.session['lMargin'] = lMargin
+        request.session['hMargin'] = hMargin
         request.session['secuMargin'] = secuMargin
 
         simLibrary.parameters["trip"] = int(trip_form)
         simLibrary.parameters["upperTimeLimit"] = startHour
         simLibrary.parameters["lowerTimeLimit"] = endHour
         simLibrary.parameters["nLines"] = int(lines)
+        simLibrary.parameters["lowerMinuteMargin"] = int(lMargin)
+        simLibrary.parameters["higherMinuteMargin"] = int(hMargin)
         simLibrary.parameters["securityMargin"] = int(secuMargin)
 
         print(simLibrary.parameters)
