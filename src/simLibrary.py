@@ -2,6 +2,7 @@ import random as ran
 import src.dbLibrary as dbl
 import src.generateDiagram as gd
 import re
+import os
 from datetime import timedelta, datetime
 
 
@@ -17,7 +18,9 @@ parameters = {
     "lowerMinuteMargin": 10,
     "higherMinuteMargin": 30,
     "securityMargin": None,
-    "MaxIterations": 500000
+    "MaxIterations": 500000,
+    "lineOffset": 10,
+    "minStations": 4
 }
 
 # SEED
@@ -53,7 +56,7 @@ def stationsDefault(trip:list) -> dict:
 def hourFormat(hour, formatHour):
     return datetime.strptime(hour, formatHour)
 
-def generateLines(route, min_stations_per_line=4):
+def generateLines(route, min_stations_per_line):
     estaciones = [chr(i) for i in range(ord(route[0]), ord(route[1]) + 1)]
     posibles_lineas = []
 
@@ -77,7 +80,6 @@ def generateLines(route, min_stations_per_line=4):
 
     for idx, line in enumerate(generadas):
         dbl.dbInputsTL(idx + 1, line, [], [], 'TFG', [])
-
     
 def setTimeLimit(formatReference):
     if checkFormat(formatReference, parameters["upperTimeLimit"]) == False:
@@ -101,213 +103,117 @@ def marginsTimetable(opt:int, times:list, line:int) -> list:
     elif opt == 2:
         return([times[i] + timedelta(minutes=parameters["securityMargin"]) for i in range(0, len(times))])
     
+def conflictDetection(station, newDeparture, newArrival, margin, ocuStations):
+    new_start = newDeparture - margin
+    new_end = newArrival + margin
 
-def generateTimetable(limits:tuple, trip:tuple):    
-    print("[DEBUG] Entrando en generateTimetable 🚂")
-    lines = dbl.selectData(dbl.selectCollection("trainLines",'TFG'), "Linea")
+    for start, end in ocuStations[station]:
+        if new_start < end and new_end > start:
+            return True
+    return False
+    
+
+def generateTimetable(limits: tuple, trip: tuple):
+    print("[DEBUG] Entrando en generateTimetable")
+
+    lines = dbl.selectData(dbl.selectCollection("trainLines", 'TFG'), "Linea")
     stations = dbl.selectData(dbl.selectCollection("trainLines", 'TFG'), "Stations")
     timeTable = dbl.selectData(dbl.selectCollection("trainLines", 'TFG'), "Timetable")
     used_lines = lines.copy()
-    valid_timeTables = []
     valid_lines = []
-    valid_stations = []
-    tt = stationsDefault(trip)
-    counter = 0
-    
-    print(f"[DEBUG] Líneas disponibles: {used_lines}", flush=True)
-    
-    while len(used_lines) > 0:
-        print(f"[DEBUG] Iterando línea. Quedan: {len(used_lines)}", flush=True)
+    valid_timeTables = []
 
-        changeSeed()
+    ocupacion_estaciones = {chr(i): [] for i in range(ord(trip[0]), ord(trip[1]) + 1)}
+    security_margin = timedelta(minutes=parameters["securityMargin"])
+
+    print(f"[DEBUG] Líneas disponibles: {used_lines}", flush=True)
+
+    while used_lines:
+        current_line = ran.choice(used_lines)
+        current_timeTable = timeTable[lines.index(current_line)]
+        current_stations = stations[lines.index(current_line)]
+
+        estaciones_linea = [chr(i) for i in range(ord(current_stations[0]), ord(current_stations[1]))]
         horas_salida = []
         horas_llegada = []
-        
-        if len(valid_timeTables) == 0:
-            current_line = ran.choice(used_lines)
-            current_timeTable = timeTable[lines.index(current_line)]
-            current_stations = stations[lines.index(current_line)]
 
-            for i in range(ord(current_stations[0]), ord(current_stations[1])):
+        salida_linea = limits[0] + timedelta(minutes=len(valid_lines) * parameters["lineOffset"])
+
+        intentos = 0
+        linea_valida = False
+
+        while not linea_valida:
+            if intentos > parameters["MaxIterations"]:
+                if os.path.exists("./railSim/railSimulator/static/img/diagrama.png"):
+                    os.remove("./railSim/railSimulator/static/img/diagrama.png")
                 
-                if len(horas_salida) == 0:
-                    departure = limits[0] + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
-                                                                          parameters["higherMinuteMargin"]))
-                    arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
-                                                                                                                        parameters["higherMinuteMargin"]))
-                    
-                    while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
-                        counter += 1
-                        if counter > parameters["MaxIterations"]:
-                            gd.generateDiagram()
-                            return
-                                                    
-                        else:
-                            changeSeed()
-                            departure = limits[0] + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
-                                                                                  parameters["higherMinuteMargin"]))
-                            arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
-                                                                                                                                parameters["higherMinuteMargin"]))
-                    
-                    counter = 0
-                    horas_salida.append(departure)
-                    horas_llegada.append(arrival)
+                print("[ERROR] No se pudo generar horario sin solapamientos.")
+                return
 
+            salida_linea = limits[0] + timedelta(minutes=(len(valid_lines) + intentos) * parameters["lineOffset"])
+            horas_salida = []
+            horas_llegada = []
+            conflictos = False
+
+            for idx, estacion in enumerate(estaciones_linea):
+                duracion_segmento = timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], parameters["higherMinuteMargin"]))
+
+                if idx == 0:
+                    departure = salida_linea
                 else:
-                    departure = horas_llegada[len(horas_llegada)-1] - timedelta(minutes=parameters["securityMargin"])
-                    arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
-                                                                                                                        parameters["higherMinuteMargin"]))
+                    departure = horas_llegada[-1]
 
-                    while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
-                        counter += 1
-                        if counter > parameters["MaxIterations"]:
-                            gd.generateDiagram()
-                            return
-                                                    
-                        else:
-                            changeSeed()
-                            departure = horas_llegada[len(horas_llegada)-1] - timedelta(minutes=parameters["securityMargin"])
-                            arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
-                                                                                                                                parameters["higherMinuteMargin"]))
+                arrival = departure + duracion_segmento
 
-                    counter = 0
-                    horas_salida.append(departure)
-                    horas_llegada.append(arrival)
+                if arrival > limits[1] or departure > limits[1]:
+                    conflictos = True
+                    break
 
-        else:
-            current_line = ran.choice(used_lines)
-            current_timeTable:list = timeTable[lines.index(current_line)]
-            current_stations:list = stations[lines.index(current_line)]
-            
-            for station in range(ord(valid_stations[0]), ord(valid_stations[1])):
-                tt[chr(station)].append(valid_timeTables[-1][1][station - ord(valid_stations[0])])
-            
-            for station in range(ord(current_stations[0]), ord(current_stations[1])):
-                                    
-                if len(tt[chr(station)]) != 0:
-                    referenceHour = max(tt[chr(station)])
-                        
-                    if len(horas_llegada) == 0 or referenceHour > horas_llegada[len(horas_llegada) - 1]:
-                        departure = referenceHour - timedelta(minutes=parameters["securityMargin"])
-                        arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
-                                                                                                                            parameters["higherMinuteMargin"]))
+                if conflictDetection(estacion, departure, arrival, security_margin, ocupacion_estaciones):
+                    conflictos = True
+                    break
 
-                        while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
-                            counter += 1
-                            if counter > parameters["MaxIterations"]:
-                                gd.generateDiagram()
-                                return
-                        
-                            else:
-                                changeSeed()
-                                departure = referenceHour - timedelta(minutes=parameters["securityMargin"])
-                                arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
-                                                                                                                                    parameters["higherMinuteMargin"]))
+                horas_salida.append(departure)
+                horas_llegada.append(arrival)
 
-                        counter = 0
-                        horas_salida.append(departure)
-                        horas_llegada.append(arrival)
+            if not conflictos:
+                for i, estacion in enumerate(estaciones_linea):
+                    start_ocup = horas_salida[i] - security_margin
+                    end_ocup = horas_llegada[i] + security_margin
+                    ocupacion_estaciones[estacion].append((start_ocup, end_ocup))
 
-                    else:
-                        departure = horas_llegada[len(horas_llegada)-1] - timedelta(minutes=parameters["securityMargin"])
-                        arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
-                                                                                                                            parameters["higherMinuteMargin"]))
+                linea_valida = True
+            else:
+                intentos += 1
 
-                        while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
-                            counter += 1
-                            if counter > parameters["MaxIterations"]:
-                                gd.generateDiagram()
-                                return
-                        
-                            else:
-                                changeSeed()
-                                departure = horas_llegada[len(horas_llegada)-1] - timedelta(minutes=parameters["securityMargin"]) 
-                                arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
-                                                                                                                                    parameters["higherMinuteMargin"]))
 
-                        counter = 0
-                        horas_salida.append(departure)
-                        horas_llegada.append(arrival)
-
-                else:
-                        
-                    if len(horas_salida) == 0:
-                        departure = limits[0] + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
-                                                                                                                                parameters["higherMinuteMargin"]))
-                        arrival = departure +  timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
-                                                                                                                            parameters["higherMinuteMargin"]))
-
-                        while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
-                            counter += 1
-                            if counter > parameters["MaxIterations"]:
-                                gd.generateDiagram()
-                                return
-                                                        
-                            else:
-                                changeSeed()
-                                departure = limits[0] + timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], 
-                                                                                                                                        parameters["higherMinuteMargin"]))
-                                arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
-                                                                                                                                    parameters["higherMinuteMargin"]))
-
-                        counter = 0
-                        horas_salida.append(departure)
-                        horas_llegada.append(arrival)
-
-                    else:
-                        departure = horas_llegada[len(horas_llegada)-1] - timedelta(minutes=parameters["securityMargin"])
-                        arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
-                                                                                                                            parameters["higherMinuteMargin"]))
-
-                        while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
-                            counter += 1
-                            if counter > parameters["MaxIterations"]:
-                                gd.generateDiagram()
-                                return
-                        
-                            else:
-                                changeSeed()
-                                departure = horas_llegada[len(horas_llegada)-1] - timedelta(minutes=parameters["securityMargin"])
-                                arrival = departure + timedelta(hours=ran.randint(0, parameters["hourMargin"]), minutes=ran.randint(parameters["lowerMinuteMargin"], 
-                                                                                                                                    parameters["higherMinuteMargin"]))
-
-                        counter = 0             
-                        horas_salida.append(departure)
-                        horas_llegada.append(arrival)
-                
-        valid_lines.append(current_line)
-        used_lines.remove(current_line)
         current_timeTable.append(horas_salida)
         current_timeTable.append(horas_llegada)
-        valid_timeTables.append(current_timeTable)
-        valid_stations = [current_stations[0], current_stations[1]]
-
-        print(f"[DEBUG] Modificando linea: {current_line}", flush=True)
-        print(f"[DEBUG] Nuevo Timetable: {current_timeTable}", flush=True)
 
         try:
             result1 = dbl.modifyEntry(
-            dbl.selectCollection("trainLines", 'TFG'),
-                    {"Linea": current_line},
-                    {"Timetable": current_timeTable}
+                dbl.selectCollection("trainLines", 'TFG'),
+                {"Linea": current_line},
+                {"Timetable": current_timeTable}
             )
-    
-            print(f"[DEBUG] Resultado modificación Timetable: {result1}", flush=True)
 
             result2 = dbl.modifyEntry(
                 dbl.selectCollection("trainLines", 'TFG'),
-                    {"Linea": current_line},
-                    {
-                        "Timetable_Margins": [
+                {"Linea": current_line},
+                {
+                    "Timetable_Margins": [
                         marginsTimetable(1, horas_salida, current_line),
                         marginsTimetable(2, horas_llegada, current_line)
-                        ]
-                    }
-                )
-            print(f"[DEBUG] Resultado modificación Margins: {result2}", flush=True)
+                    ]
+                }
+            )
 
         except Exception as e:
             print(f"[ERROR] Fallo modificando MongoDB para {current_line}: {e}", flush=True)
+
+        used_lines.remove(current_line)
+        valid_lines.append(current_line)
+        valid_timeTables.append(current_timeTable)
 
     gd.generateDiagram()
 

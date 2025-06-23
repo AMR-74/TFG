@@ -54,3 +54,216 @@ def generateLines(route, min_stations_per_line=3):
 
     for idx, line in enumerate(generadas):
         dbl.dbInputsTL(idx + 1, line, [], [], 'TFG', [])
+
+OPT 1 ==> generateTimetable
+def generateTimetable(limits:tuple, trip:tuple):    
+    print("[DEBUG] Entrando en generateTimetable")
+    lines = dbl.selectData(dbl.selectCollection("trainLines",'TFG'), "Linea")
+    stations = dbl.selectData(dbl.selectCollection("trainLines", 'TFG'), "Stations")
+    timeTable = dbl.selectData(dbl.selectCollection("trainLines", 'TFG'), "Timetable")
+    ocupationStations = {chr(i): [] for i in range(ord(trip[0]), ord(trip[1]) + 1)}
+    used_lines = lines.copy()
+    valid_timeTables = []
+    valid_lines = []
+    valid_stations = []
+    tt = stationsDefault(trip)
+    counter = 0
+    
+    print(f"[DEBUG] Líneas disponibles: {used_lines}", flush=True)
+    
+    while len(used_lines) > 0:
+        print(f"[DEBUG] Iterando línea. Quedan: {len(used_lines)}", flush=True)
+
+        changeSeed()
+        horas_salida = []
+        horas_llegada = []
+        
+        if len(valid_timeTables) == 0:
+            current_line = ran.choice(used_lines)
+            current_timeTable = timeTable[lines.index(current_line)]
+            current_stations = stations[lines.index(current_line)]
+
+            for i in range(ord(current_stations[0]), ord(current_stations[1])):
+                
+                if len(horas_salida) == 0:
+                    LineMarg = timedelta(minutes=parameters["lineOffset"] * len(valid_lines))
+                    segment_duration = ran.randint(parameters["lowerMinuteMargin"], parameters["higherMinuteMargin"])
+                    departure = limits[0] + LineMarg
+                    arrival = departure + timedelta(minutes=segment_duration)
+                    
+                    while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
+                        counter += 1
+                        if counter > parameters["MaxIterations"]:
+                            if os.path.exists("./railSim/railSimulator/static/img/diagrama.png"):
+                                os.remove("./railSim/railSimulator/static/img/diagrama.png")
+                            return
+                                                    
+                        else:
+                            changeSeed()
+                            departure = limits[0] + LineMarg 
+                            arrival = departure + timedelta(minutes=segment_duration)
+                    
+                    counter = 0
+                    horas_salida.append(departure)
+                    horas_llegada.append(arrival)
+
+                else:
+                    LineMarg = timedelta(minutes=parameters["lineOffset"] * len(valid_lines))
+                    segment_duration = ran.randint(parameters["lowerMinuteMargin"], parameters["higherMinuteMargin"])
+                    departure = horas_llegada[len(horas_llegada)-1] - timedelta(minutes=parameters["securityMargin"])
+                    arrival = departure + timedelta(minutes=segment_duration)
+
+                    while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
+                        counter += 1
+                        if counter > parameters["MaxIterations"]:
+                            if os.path.exists("./railSim/railSimulator/static/img/diagrama.png"):
+                                os.remove("./railSim/railSimulator/static/img/diagrama.png")
+                            return
+                                                    
+                        else:
+                            changeSeed()
+                            departure = horas_llegada[len(horas_llegada)-1] - timedelta(minutes=parameters["securityMargin"])
+                            arrival = departure + timedelta(minutes=segment_duration)
+
+                    counter = 0
+                    horas_salida.append(departure)
+                    horas_llegada.append(arrival)
+
+        else:
+            current_line = ran.choice(used_lines)
+            current_timeTable:list = timeTable[lines.index(current_line)]
+            current_stations:list = stations[lines.index(current_line)]
+            
+            for station in range(ord(valid_stations[0]), ord(valid_stations[1])):
+                tt[chr(station)].append(valid_timeTables[-1][1][station - ord(valid_stations[0])])
+            
+            for station in range(ord(current_stations[0]), ord(current_stations[1])):
+                                    
+                if len(tt[chr(station)]) != 0:
+                    referenceHour = max(tt[chr(station)])
+                        
+                    if len(horas_llegada) == 0 or referenceHour > horas_llegada[len(horas_llegada) - 1]:
+                        LineMarg = timedelta(minutes=parameters["lineOffset"] * len(valid_lines))
+                        segment_duration = ran.randint(parameters["lowerMinuteMargin"], parameters["higherMinuteMargin"])
+                        departure = referenceHour + LineMarg 
+                        arrival = departure + timedelta(minutes=segment_duration)
+
+                        while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
+                            counter += 1
+                            if counter > parameters["MaxIterations"]:
+                                if os.path.exists("./railSim/railSimulator/static/img/diagrama.png"):
+                                    os.remove("./railSim/railSimulator/static/img/diagrama.png")
+                                return
+                        
+                            else:
+                                changeSeed()
+                                departure = referenceHour + LineMarg + timedelta(minutes=parameters["securityMargin"])
+                                arrival = departure + timedelta(minutes=segment_duration)
+
+                        counter = 0
+                        horas_salida.append(departure)
+                        horas_llegada.append(arrival)
+
+                    else:
+                        LineMarg = timedelta(minutes=parameters["lineOffset"] * len(valid_lines))
+                        segment_duration = ran.randint(parameters["lowerMinuteMargin"], parameters["higherMinuteMargin"])
+                        departure = horas_llegada[len(horas_llegada)-1] - timedelta(minutes=parameters["securityMargin"])
+                        arrival = departure + timedelta(minutes=segment_duration)
+
+                        while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
+                            counter += 1
+                            if counter > parameters["MaxIterations"]:
+                                if os.path.exists("./railSim/railSimulator/static/img/diagrama.png"):
+                                    os.remove("./railSim/railSimulator/static/img/diagrama.png")
+                                return
+                        
+                            else:
+                                changeSeed()
+                                departure = horas_llegada[len(horas_llegada)-1] - timedelta(minutes=parameters["securityMargin"]) 
+                                arrival = departure + timedelta(minutes=segment_duration)
+
+                        counter = 0
+                        horas_salida.append(departure)
+                        horas_llegada.append(arrival)
+
+                else:
+                        
+                    if len(horas_salida) == 0:
+                        LineMarg = timedelta(minutes=parameters["lineOffset"] * len(valid_lines))
+                        segment_duration = ran.randint(parameters["lowerMinuteMargin"], parameters["higherMinuteMargin"])
+                        departure = limits[0] + LineMarg 
+                        arrival = departure +  timedelta(minutes=segment_duration)
+
+                        while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
+                            counter += 1
+                            if counter > parameters["MaxIterations"]:
+                                if os.path.exists("./railSim/railSimulator/static/img/diagrama.png"):
+                                    os.remove("./railSim/railSimulator/static/img/diagrama.png")
+                                return
+                                                        
+                            else:
+                                changeSeed()
+                                departure = limits[0] + LineMarg 
+                                arrival = departure + timedelta(minutes=segment_duration)
+
+                        counter = 0
+                        horas_salida.append(departure)
+                        horas_llegada.append(arrival)
+
+                    else:
+                        LineMarg = timedelta(minutes=parameters["lineOffset"] * len(valid_lines))
+                        segment_duration = ran.randint(parameters["lowerMinuteMargin"], parameters["higherMinuteMargin"])
+                        departure = horas_llegada[len(horas_llegada)-1] - timedelta(minutes=parameters["securityMargin"])
+                        arrival = departure + timedelta(minutes=segment_duration)
+
+                        while arrival > limits[1] and (arrival + timedelta(minutes=parameters["securityMargin"])) > limits[1]:
+                            counter += 1
+                            if counter > parameters["MaxIterations"]:
+                                if os.path.exists("./railSim/railSimulator/static/img/diagrama.png"):
+                                    os.remove("./railSim/railSimulator/static/img/diagrama.png")
+                                return
+                        
+                            else:
+                                changeSeed()
+                                departure = horas_llegada[len(horas_llegada)-1] - timedelta(minutes=parameters["securityMargin"])
+                                arrival = departure + timedelta(minutes=segment_duration)
+
+                        counter = 0             
+                        horas_salida.append(departure)
+                        horas_llegada.append(arrival)
+                
+        valid_lines.append(current_line)
+        used_lines.remove(current_line)
+        current_timeTable.append(horas_salida)
+        current_timeTable.append(horas_llegada)
+        valid_timeTables.append(current_timeTable)
+        valid_stations = [current_stations[0], current_stations[1]]
+
+        print(f"[DEBUG] Modificando linea: {current_line}", flush=True)
+        print(f"[DEBUG] Nuevo Timetable: {current_timeTable}", flush=True)
+
+        try:
+            result1 = dbl.modifyEntry(
+            dbl.selectCollection("trainLines", 'TFG'),
+                    {"Linea": current_line},
+                    {"Timetable": current_timeTable}
+            )
+    
+            print(f"[DEBUG] Resultado modificación Timetable: {result1}", flush=True)
+
+            result2 = dbl.modifyEntry(
+                dbl.selectCollection("trainLines", 'TFG'),
+                    {"Linea": current_line},
+                    {
+                        "Timetable_Margins": [
+                        marginsTimetable(1, horas_salida, current_line),
+                        marginsTimetable(2, horas_llegada, current_line)
+                        ]
+                    }
+                )
+            print(f"[DEBUG] Resultado modificación Margins: {result2}", flush=True)
+
+        except Exception as e:
+            print(f"[ERROR] Fallo modificando MongoDB para {current_line}: {e}", flush=True)
+
+    gd.generateDiagram()

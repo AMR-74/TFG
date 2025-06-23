@@ -37,7 +37,7 @@ def simulator(request):
         limits = simLibrary.setTimeLimit(simLibrary.parameters["format"])
         trip_tuple = simLibrary.generateTrip(simLibrary.parameters["trip"])
         dbl.deleteCollection(dbl.selectCollection("trainLines",'TFG'))
-        simLibrary.generateLines(trip_tuple)
+        simLibrary.generateLines(trip_tuple, simLibrary.parameters["minStations"])
         simLibrary.generateTimetable(limits, trip_tuple)
 
         time.sleep(2)
