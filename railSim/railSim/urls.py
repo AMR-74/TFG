@@ -21,5 +21,6 @@ from railSimulator import views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('', views.home, name="home"),
-    path('simulator/', views.simulator, name="simulator")
+    path('simulator/', views.simulator, name="simulator"),
+    path('generate_capacity/', views.generate_capacity, name='generate_capacity')
 ]

@@ -4,8 +4,25 @@ from src import simLibrary
 from src import dbLibrary as dbl
 import time
 from datetime import datetime
+from src import capacity as cp
 
 # Create your views here.
+def generate_capacity(request):
+    if request.method == "POST":
+        stationOrg = request.POST.get("stationOrg").upper()
+        stationEnd = request.POST.get("stationEnd").upper()
+        startHour = request.POST.get("startHourCapacity")
+        endHour = request.POST.get("endHourCapacity")
+
+        cp.capacityParams["stationOrg"] = stationOrg
+        cp.capacityParams["stationEnd"] = stationEnd
+        cp.capacityParams["startHour"] = startHour
+        cp.capacityParams["endHour"] = endHour
+
+        cp.generateSelectedtt()
+
+        return redirect('simulator')
+
 def simulator(request):
     if request.method == "POST":
         trip_form = request.POST.get("trip")

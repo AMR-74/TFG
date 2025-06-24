@@ -27,22 +27,27 @@ def generateDiagram(outputPath="./railSim/railSimulator/static/img/diagrama.png"
     lines = dbl.readCollection(collection)
     
     colors = [
-        "#1f77b4",  # azul
-        "#ff7f0e",  # naranja
-        "#2ca02c",  # verde
-        "#d62728",  # rojo
-        "#9467bd",  # morado
-        "#8c564b",  # marrón oscuro
-        "#e377c2",  # rosa fuerte
-        "#7f7f7f",  # gris
-        "#bcbd22",  # verde oliva
-        "#17becf",  # azul celeste
-        "#393b79",  # azul marino
-        "#637939",  # verde musgo
-        "#8c6d31",  # marrón dorado
-        "#843c39",  # rojo vino
-        "#7b4173"   # púrpura intenso
-    ]
+    "#E6194B",  # Rojo fuerte
+    "#3CB44B",  # Verde brillante
+    "#FFE119",  # Amarillo
+    "#0082C8",  # Azul eléctrico
+    "#F58231",  # Naranja
+    "#911EB4",  # Púrpura
+    "#46F0F0",  # Cian claro
+    "#F032E6",  # Fucsia
+    "#D2F53C",  # Lima
+    "#FABEBE",  # Rosa claro
+    "#008080",  # Verde petróleo
+    "#E6BEFF",  # Lavanda
+    "#AA6E28",  # Marrón
+    "#800000",  # Rojo oscuro
+    "#FFD8B1",  # Melocotón claro
+    "#000075",  # Azul marino
+    "#808000",  # Oliva
+    "#A9A9FF",  # Azul pastel
+    "#B10DC9",  # Violeta
+    "#FF7F00"   # Naranja oscuro
+]
     rangeStations = 0
     stationOrg = float('inf')
     stationEnd = float('-inf')

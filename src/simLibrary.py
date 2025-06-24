@@ -123,7 +123,7 @@ def generateTimetable(limits: tuple, trip: tuple):
     valid_lines = []
     valid_timeTables = []
 
-    ocupacion_estaciones = {chr(i): [] for i in range(ord(trip[0]), ord(trip[1]) + 1)}
+    ocuStations = {chr(i): [] for i in range(ord(trip[0]), ord(trip[1]) + 1)}
     security_margin = timedelta(minutes=parameters["securityMargin"])
 
     print(f"[DEBUG] Líneas disponibles: {used_lines}", flush=True)
@@ -133,62 +133,62 @@ def generateTimetable(limits: tuple, trip: tuple):
         current_timeTable = timeTable[lines.index(current_line)]
         current_stations = stations[lines.index(current_line)]
 
-        estaciones_linea = [chr(i) for i in range(ord(current_stations[0]), ord(current_stations[1]))]
-        horas_salida = []
-        horas_llegada = []
+        lineStations = [chr(i) for i in range(ord(current_stations[0]), ord(current_stations[1]))]
+        departureTimes = []
+        arrivalTimes = []
 
-        salida_linea = limits[0] + timedelta(minutes=len(valid_lines) * parameters["lineOffset"])
+        startLine = limits[0] + timedelta(minutes=len(valid_lines) * parameters["lineOffset"])
 
-        intentos = 0
-        linea_valida = False
+        iterations = 0
+        validLine = False
 
-        while not linea_valida:
-            if intentos > parameters["MaxIterations"]:
+        while not validLine:
+            if iterations > parameters["MaxIterations"]:
                 if os.path.exists("./railSim/railSimulator/static/img/diagrama.png"):
                     os.remove("./railSim/railSimulator/static/img/diagrama.png")
                 
                 print("[ERROR] No se pudo generar horario sin solapamientos.")
                 return
 
-            salida_linea = limits[0] + timedelta(minutes=(len(valid_lines) + intentos) * parameters["lineOffset"])
-            horas_salida = []
-            horas_llegada = []
-            conflictos = False
+            startLine = limits[0] + timedelta(minutes=(len(valid_lines) + iterations) * parameters["lineOffset"])
+            departureTimes = []
+            arrivalTimes = []
+            conflicts = False
 
-            for idx, estacion in enumerate(estaciones_linea):
-                duracion_segmento = timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], parameters["higherMinuteMargin"]))
+            for idx, station in enumerate(lineStations):
+                segmentDuration = timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], parameters["higherMinuteMargin"]))
 
                 if idx == 0:
-                    departure = salida_linea
+                    departure = startLine
                 else:
-                    departure = horas_llegada[-1]
+                    departure = arrivalTimes[-1]
 
-                arrival = departure + duracion_segmento
+                arrival = departure + segmentDuration
 
                 if arrival > limits[1] or departure > limits[1]:
-                    conflictos = True
+                    conflicts = True
                     break
 
-                if conflictDetection(estacion, departure, arrival, security_margin, ocupacion_estaciones):
-                    conflictos = True
+                if conflictDetection(station, departure, arrival, security_margin, ocuStations):
+                    conflicts = True
                     break
 
-                horas_salida.append(departure)
-                horas_llegada.append(arrival)
+                departureTimes.append(departure)
+                arrivalTimes.append(arrival)
 
-            if not conflictos:
-                for i, estacion in enumerate(estaciones_linea):
-                    start_ocup = horas_salida[i] - security_margin
-                    end_ocup = horas_llegada[i] + security_margin
-                    ocupacion_estaciones[estacion].append((start_ocup, end_ocup))
+            if not conflicts:
+                for i, station in enumerate(lineStations):
+                    start_ocup = departureTimes[i] - security_margin
+                    end_ocup = arrivalTimes[i] + security_margin
+                    ocuStations[station].append((start_ocup, end_ocup))
 
-                linea_valida = True
+                validLine = True
             else:
-                intentos += 1
+                iterations += 1
 
 
-        current_timeTable.append(horas_salida)
-        current_timeTable.append(horas_llegada)
+        current_timeTable.append(departureTimes)
+        current_timeTable.append(arrivalTimes)
 
         try:
             result1 = dbl.modifyEntry(
@@ -202,8 +202,8 @@ def generateTimetable(limits: tuple, trip: tuple):
                 {"Linea": current_line},
                 {
                     "Timetable_Margins": [
-                        marginsTimetable(1, horas_salida, current_line),
-                        marginsTimetable(2, horas_llegada, current_line)
+                        marginsTimetable(1, departureTimes, current_line),
+                        marginsTimetable(2, arrivalTimes, current_line)
                     ]
                 }
             )

@@ -2,6 +2,14 @@ import src.dbLibrary as dbl
 import src.simLibrary as simlb
 from datetime import timedelta, datetime
 
+#=== GLOBAL PARAMETERS ===#
+capacityParams = {
+    "stationOrg": None,
+    "stationEnd": None,
+    "startHour": None,
+    "endHour": None
+}
+
 #=== FUNCTIONS ===#
 def selectTimeZone(stationOrg: str, stationEnd: str, earlyHour: str, endHour: str) -> tuple:
     formatHour = "%H:%M"
@@ -68,21 +76,21 @@ def identifyLineTimes(opt:int, timeZone:tuple):
             if ((ord(stations[1]) >= ord(timeZone[0]) >= ord(stations[0])) or (ord(stations[0]) <= ord(timeZone[1]) <= ord(stations[1]))) and (ord(stations[1]) > ord(timeZone[0])) and (stations[0] != timeZone[1]):
                 if ((ord(stations[1]) >= ord(timeZone[0]) >= ord(stations[0])) and (timeZone[2] <= timesOriginal[0][(ord(timeZone[0]) - ord(stations[0]))])):
                     for i in range(0, (ord(stations[1]) - ord(stations[0]))):
-                        if (ord(timeZone[1]) >= (ord(stations[0]) + i) >= ord(stations[0])):
+                        if (ord(timeZone[1]) > (ord(stations[0]) + i) >= ord(stations[0])):
                             if (timeZone[3] >= timesOriginal[0][i] >= timeZone[2]):
                                 lineasVal.append(nLine)
                                 break
                 
                 elif ((ord(stations[0]) <= ord(timeZone[0])) and (timeZone[2] <= timesOriginal[0][(ord(timeZone[0]) - ord(stations[0]))])):
                     for i in range(0, (ord(stations[1]) - ord(stations[0]))):
-                        if (ord(timeZone[1]) >= (ord(stations[0]) + i) >= ord(stations[0])):
+                        if (ord(timeZone[1]) > (ord(stations[0]) + i) >= ord(stations[0])):
                             if (timeZone[3] >= timesOriginal[0][i] >= timeZone[2]):
                                 lineasVal.append(nLine)
                                 break
 
                 elif (ord(timeZone[1]) >= ord(stations[0]) >= ord(timeZone[0])):
                     for i in range(0, (ord(stations[1]) - ord(stations[0]))):
-                        if (ord(timeZone[1]) >= (ord(stations[0]) + i) >= ord(stations[0])):
+                        if (ord(timeZone[1]) > (ord(stations[0]) + i) >= ord(timeZone[0])):
                             if (timeZone[3] >= timesOriginal[0][i] >= timeZone[2]):
                                 lineasVal.append(nLine)
                                 break
@@ -92,8 +100,7 @@ def identifyLineTimes(opt:int, timeZone:tuple):
 
         
         return lineasVal
-
-    
+  
 def saveLine(numberLine:int, timeZone:tuple):
     collection = dbl.selectCollection("trainLines", "TFG")
     lines = dbl.readCollection(collection)
@@ -108,9 +115,8 @@ def saveLine(numberLine:int, timeZone:tuple):
 
             for i in range(0, (ord(stations[1]) - ord(stations[0]))):
                 if (ord(timeZone[0]) <= (ord(stations[0]) + i) < ord(timeZone[1])):
-                    if (timeZone[2] <= ttOrg[0][i] <= timeZone[3]) and (timeZone[2] <= ttOrg[1][i] <= timeZone[3]):
-                        temporaryList1.append(ttOrg[0][i])
-                        temporaryList2.append(ttOrg[1][i])
+                    temporaryList1.append(ttOrg[0][i])
+                    temporaryList2.append(ttOrg[1][i])
 
             ttSave.append(temporaryList1)
             ttSave.append(temporaryList2)
@@ -121,7 +127,10 @@ def saveLine(numberLine:int, timeZone:tuple):
 
 
 def generateSelectedtt():
-    timeZone = selectTimeZone('C', 'I', "07:00", "14:00")
+    timeZone = selectTimeZone(capacityParams["stationOrg"],
+                              capacityParams["stationEnd"],
+                              capacityParams["startHour"],
+                              capacityParams["endHour"])
     nLine = identifyLineTimes(1, timeZone)
     linesVal = identifyLineTimes(2, timeZone)
 
@@ -129,6 +138,3 @@ def generateSelectedtt():
         saveLine(lineIndex, timeZone)
 
     print("Done")
-
-
-generateSelectedtt()

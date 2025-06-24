@@ -18,9 +18,25 @@
                 <button type="submit">Submit</button>
             </form>
         </div>
+        <!-- Formulario Capacidad -->
+        <details>
+            <summary style="font-weight: bold; font-size: 18px; cursor: pointer;">Capacity</summary>
+                <div class="panel" style="margin-bottom: 40px;">
+                    <h2>Capacity Calculator</h2>
+                    <form method="post" action="{% url 'generate_capacity' %}">
+                        {% csrf_token %}
+                        <label>Station Origin (A-Z): <input type="text" id="stationOrg" name="stationOrg"></label>
+                        <label>Station End (A-Z): <input type="text" id="stationEnd" name="stationEnd"></label>
+                        <label>Start Hour (HH:mm): <input type="text" id="startHourCapacity" name="startHourCapacity"></label>
+                        <label>End Hour (HH:mm): <input type="text" id="endHourCapacity" name="endHourCapacity"></label>
+                        <button type="submit">Submit</button>
+                    </form>
+                </div>
+            </details>
     </div>
     
     <div style="display: flex; align-items: flex-start; gap: 20px;">
+
     <!-- Tabla -->
     <details class="table">
         <summary style="font-weight: bold; font-size: 18px; cursor: pointer;">Ver tabla de horarios</summary>
