@@ -19,7 +19,8 @@ def generate_capacity(request):
         cp.capacityParams["startHour"] = startHour
         cp.capacityParams["endHour"] = endHour
 
-        cp.generateSelectedtt()
+        ocupation = cp.generateSelectedtt()
+        request.session["ocupation"] = ocupation
 
         return redirect('simulator')
 
@@ -94,6 +95,8 @@ def simulator(request):
             "Arrivals": formatted_arrivals
         })
 
+    ocupation = request.session.get("ocupation", None)
+
     return render(request, "railSimulator/simulation.html", 
     {
         "trip": trip, 
@@ -102,7 +105,8 @@ def simulator(request):
         "lines": lines,
         "secuMargin": secuMargin,
         "train_lines": train_lines_data,
-        "timestamp": datetime.now().timestamp()
+        "timestamp": datetime.now().timestamp(),
+        "ocupation": ocupation
     })
 
 def home(request):

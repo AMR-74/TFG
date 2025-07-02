@@ -7,7 +7,8 @@ capacityParams = {
     "stationOrg": "B",
     "stationEnd": "H",
     "startHour": "07:00",
-    "endHour": "09:30"
+    "endHour": "09:30",
+    "extraTime": timedelta(minutes=30)
 }
 
 #=== FUNCTIONS ===#
@@ -72,7 +73,7 @@ def identifyLineTimes(opt:int, timeZone:tuple):
         
         return lineasVal
 
-def adjustAndSave(opt:int, diference:timedelta, line, collection, stationsTimes:dict) -> None:
+def adjustAndSave(opt:int, difference:timedelta, line, collection, stationsTimes:dict) -> None:
     """
     This function adjust the times for the compressed ones.
 
@@ -91,36 +92,38 @@ def adjustAndSave(opt:int, diference:timedelta, line, collection, stationsTimes:
     arrivals = []
 
     if opt == 1:
-        counter = 0
         for departure in line["Compressed_Timetable"][0]:
-            departures.append(departure-diference)
+            departures.append(departure-difference)
 
-        for arrival in line["Compressed_Timetable"][1]:
-            arrivals.append(arrival - diference)
-            stationsTimes[chr(ord(capacityParams["stationOrg"]) + counter)].append(arrival - diference)
-            counter += 1
-
+        for i, arrival in enumerate(line["Compressed_Timetable"][1]):
+            arrivals.append(arrival - difference)
+            stationsTimes[chr(ord(capacityParams["stationOrg"]) + i)].append(arrival - difference)
 
         dbl.modifyEntry(collection,
                             {"Linea": line["Linea"]},
                             {"Compressed_Timetable": [departures, arrivals]})
         
     elif opt == 2:
-        counter = 0
         for departure in line["Compressed_Timetable"][0]:
-            departures.append(departure-diference)
+            departures.append(departure-difference)
 
-        for arrival in line["Compressed_Timetable"][1]:
-            arrivals.append(arrival - diference)
-            stationsTimes[chr(ord(line["Stations"][0]) + counter)].append(arrival - diference)
-            counter += 1
+        for i, arrival in enumerate(line["Compressed_Timetable"][1]):
+            arrivals.append(arrival - difference)
+            stationsTimes[chr(ord(line["Stations"][0]) + i)].append(arrival - difference)
 
 
         dbl.modifyEntry(collection,
                             {"Linea": line["Linea"]},
                             {"Compressed_Timetable": [departures, arrivals]})
+        
+    elif opt == 3:
+        for departure in line["Compressed_Timetable"][0]:
+            departures.append(departure + difference)
 
-def compressLines(sortedLines:list, timeZone:tuple) -> None:
+        for i, arrival in enumerate(line["Compressed_Timetable"][1]):
+            arrivals.append(arrival + difference)
+
+def compressLines(sortedLines:list, timeZone:tuple) -> dict:
     """
     This function compresses valid lines
 
@@ -128,12 +131,12 @@ def compressLines(sortedLines:list, timeZone:tuple) -> None:
     sortedLines(list): List with the lines that need to be compressed in the order of compression.
 
     Returns:
-    None
+    stations(dict): Compressed arrivals
     """
     collection = dbl.selectCollection("trainLines", "TFG")
     lines = dbl.readCollection(collection)
 
-
+    firstLine = None
 
     maxLines = len(sortedLines)
     tref = None
@@ -145,6 +148,7 @@ def compressLines(sortedLines:list, timeZone:tuple) -> None:
         for line in lines:
             if line["Linea"] == sLine:
                 if maxLines == len(sortedLines):
+                    firstLine = line
                     tref = timeZone[2]
                     for time in line["Compressed_Timetable"][0]:
                         if tact == None:
@@ -190,6 +194,43 @@ def compressLines(sortedLines:list, timeZone:tuple) -> None:
                         tact = None 
 
                         maxLines -= 1
+
+    for i, time in enumerate(firstLine["Compressed_Timetable"][0]):
+        if (tref == None) or (abs(tref - tact) < abs(stations[chr(ord(firstLine["Stations"][0]) + i)][-1] - time)):
+            tref = stations[chr(ord(firstLine["Stations"][0]) + i)][-1]
+            tact = time
+
+    difference = abs(tact-tref)
+    adjustAndSave(3, difference, firstLine, collection, stations)
+    tref = None
+    tact = None
+
+    return stations
+
+def capacityCalculator(stationTimes:dict, extraTime:timedelta, timeZone:tuple) -> float:
+    """
+    Function that calculates the capacity as specified in UIC Leaflet 406 2013.
+
+    Parameters:
+    stationTimes(dict): Dictionary with the compressed arrivals
+    extraTime(timedelta): Parameter of additional time.
+    timeZone(tuple): 
+    """
+
+    maxArrivalTime = None
+
+    for station in stationTimes:
+        if len(stationTimes[station]) > 0:
+            if (maxArrivalTime == None) or stationTimes[station][-1] < maxArrivalTime:
+                maxArrivalTime = stationTimes[station][-1]
+
+    if (abs(maxArrivalTime - timeZone[2]) + extraTime) >= abs(timeZone[2] - timeZone[3]):
+        capacity = float(100)
+
+    else:
+        capacity = float((abs(timeZone[2] - maxArrivalTime) + extraTime)/(abs(timeZone[2] - timeZone[3]))) * 100
+
+    return capacity
 
 def sortStations(validLines:list, stationOrg:str, stationEnd:str) -> list:
     """
@@ -265,8 +306,7 @@ def generateSelectedtt():
         saveLine(lineIndex, timeZone)
 
     sortedLines = sortStations(linesVal, capacityParams["stationOrg"], capacityParams["stationEnd"])
-    compressLines(sortedLines, timeZone)
-    print("Done")
-
-
-generateSelectedtt()
+    stationsC = compressLines(sortedLines, timeZone)
+    ocupation = round(capacityCalculator(stationsC, capacityParams["extraTime"], timeZone), 2)
+    
+    return ocupation

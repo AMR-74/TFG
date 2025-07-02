@@ -31,6 +31,34 @@
                         <label>End Hour (HH:mm): <input type="text" id="endHourCapacity" name="endHourCapacity"></label>
                         <button type="submit">Submit</button>
                     </form>
+
+                    {% if ocupation %}
+                        <div style="margin-top: 20px;">
+                            <strong>Capacidad calculada:</strong>
+                        </div>
+
+                        <div style="margin-top: 10px; width: 100%; max-width: 400px;">
+                            <div style="
+                                background-color: #eee;
+                                border-radius: 8px;
+                                overflow: hidden;
+                                box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+                            ">
+                                <div style="
+                                    width: {{ ocupation }}%;
+                                    background-color: {% if ocupation < 60 %}#4caf50{% elif ocupation < 85 %}#ffc107{% else %}#f44336{% endif %};
+                                    height: 24px;
+                                    text-align: center;
+                                    color: white;
+                                    font-weight: bold;
+                                    line-height: 24px;
+                                    transition: width 0.5s;
+                                ">
+                                    {{ ocupation }}%
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
                 </div>
             </details>
     </div>
