@@ -4,10 +4,10 @@ from datetime import timedelta, datetime
 
 #=== GLOBAL PARAMETERS ===#
 capacityParams = {
-    "stationOrg": "B",
-    "stationEnd": "H",
+    "stationOrg": "G",
+    "stationEnd": "I",
     "startHour": "07:00",
-    "endHour": "09:30",
+    "endHour": "13:30",
     "extraTime": timedelta(minutes=30)
 }
 
@@ -133,9 +133,6 @@ def compressLines(sortedLines:list, timeZone:tuple) -> dict:
     Returns:
     stations(dict): Compressed arrivals
     """
-    collection = dbl.selectCollection("trainLines", "TFG")
-    lines = dbl.readCollection(collection)
-
     firstLine = None
 
     maxLines = len(sortedLines)
@@ -145,6 +142,9 @@ def compressLines(sortedLines:list, timeZone:tuple) -> dict:
     stations = {chr(i): [] for i in range(ord(capacityParams["stationOrg"]), ord(capacityParams["stationEnd"]) + 1)}   
 
     for sLine in sortedLines:
+        collection = dbl.selectCollection("trainLines", "TFG")
+        lines = dbl.readCollection(collection)
+        
         for line in lines:
             if line["Linea"] == sLine:
                 if maxLines == len(sortedLines):
@@ -173,9 +173,10 @@ def compressLines(sortedLines:list, timeZone:tuple) -> dict:
                 else:
                     if ord(line["Stations"][0]) <= ord(capacityParams["stationOrg"]):
                         for i, time in enumerate(line["Compressed_Timetable"][0]):
-                            if (tref == None) or (abs(tref - tact)) > (abs(stations[chr(ord(capacityParams) + i)][-1] - time)):
-                                tref = stations[chr(ord(capacityParams["stationOrg"]) + i)][-1]
-                                tact = time
+                            if len(stations[chr(ord(capacityParams["stationOrg"]) + i)]) > 0:
+                                if (tref == None) or (abs(tref - tact)) > (abs(stations[chr(ord(capacityParams["stationOrg"]) + i)][-1] - time)):
+                                    tref = stations[chr(ord(capacityParams["stationOrg"]) + i)][-1]
+                                    tact = time
 
                         difference = abs(tact - tref)
                         adjustAndSave(1, difference, line, collection, stations)
@@ -184,9 +185,10 @@ def compressLines(sortedLines:list, timeZone:tuple) -> dict:
                     
                     else:
                         for i, time in enumerate(line["Compressed_Timetable"][0]):
-                            if (tref == None) or (abs(tref - tact)) > (abs(stations[chr(ord(line["Stations"][0]) + i)][-1] - time)):
-                                tref = stations[chr(ord(line["Stations"][0]) + i)][-1]
-                                tact = time
+                            if len(stations[chr(ord(line["Stations"][0]) + i)]) > 0:
+                                if (tref == None) or (abs(tref - tact)) > (abs(stations[chr(ord(line["Stations"][0]) + i)][-1] - time)):
+                                    tref = stations[chr(ord(line["Stations"][0]) + i)][-1]
+                                    tact = time
 
                         difference = abs(tact - tref)
                         adjustAndSave(2, difference, line, collection, stations)
@@ -221,7 +223,7 @@ def capacityCalculator(stationTimes:dict, extraTime:timedelta, timeZone:tuple) -
 
     for station in stationTimes:
         if len(stationTimes[station]) > 0:
-            if (maxArrivalTime == None) or stationTimes[station][-1] < maxArrivalTime:
+            if (maxArrivalTime == None) or stationTimes[station][-1] > maxArrivalTime:
                 maxArrivalTime = stationTimes[station][-1]
 
     if (abs(maxArrivalTime - timeZone[2]) + extraTime) >= abs(timeZone[2] - timeZone[3]):
@@ -248,7 +250,7 @@ def sortStations(validLines:list, stationOrg:str, stationEnd:str) -> list:
     lines = dbl.readCollection(collection)
 
     stations = {chr(i): [] for i in range(ord(stationOrg), ord(stationEnd) + 1)}
-    linesOrd = []
+    allEntries = []
 
     for line in lines:
         if line["Linea"] in validLines:
@@ -260,11 +262,15 @@ def sortStations(validLines:list, stationOrg:str, stationEnd:str) -> list:
                     if ord(line["Stations"][0]) <= i <= ord(line["Stations"][1]):
                         stations[chr(i)].append([line["Linea"], line["Compressed_Timetable"][0][0]])
                         break 
+    
 
-    for station in sorted(stations.keys()):
-        sortedData = sorted(stations[station], key=lambda x: x[1])
+    for station in stations:
+        for item in stations[station]:
+            allEntries.append(item)
+        
+    sortedData = sorted(allEntries, key=lambda x: x[1])
 
-        linesOrd.extend(indexLine[0] for indexLine in sortedData)
+    linesOrd = [indexLine[0] for indexLine in sortedData]
 
     return linesOrd
         
@@ -310,3 +316,5 @@ def generateSelectedtt():
     ocupation = round(capacityCalculator(stationsC, capacityParams["extraTime"], timeZone), 2)
     
     return ocupation
+
+print(generateSelectedtt())
