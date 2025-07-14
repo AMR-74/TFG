@@ -6,7 +6,7 @@ import os
 from datetime import timedelta, datetime
 
 
-# GLOBAL VARIABLES
+#=== GLOBAL VARIABLES ===#
 parameters = {
     "format": r"^(?:[01]\d|2[0-3]):[0-5]\d$",
     "formatHour": "%H:%M",
@@ -23,10 +23,10 @@ parameters = {
     "minStations": 4
 }
 
-# SEED
+#=== SEED ===#
 ran.seed(ran.randint(1,300))
 
-# FUNCTIONS
+#=== FUNCTIONS ===#
 def changeSeed():
    ran.seed(ran.randint(1,500))
 
@@ -216,5 +216,6 @@ def generateTimetable(limits: tuple, trip: tuple):
         valid_timeTables.append(current_timeTable)
 
     gd.generateDiagram()
+
 
 

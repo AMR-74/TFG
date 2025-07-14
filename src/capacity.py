@@ -316,5 +316,3 @@ def generateSelectedtt():
     ocupation = round(capacityCalculator(stationsC, capacityParams["extraTime"], timeZone), 2)
     
     return ocupation
-
-print(generateSelectedtt())
