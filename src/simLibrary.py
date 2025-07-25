@@ -79,7 +79,8 @@ def generateLines(route, min_stations_per_line):
     print(f"[DEBUG] Líneas generadas: {generadas}", flush=True)
 
     for idx, line in enumerate(generadas):
-        dbl.dbInputsTL(idx + 1, line, [], [], 'TFG', [])
+        listLines = [chr(station) for station in range(ord(line[0]), ord(line[1]) + 1)]
+        dbl.dbInputsTL(idx + 1, listLines, [], [], 'TFG', [])
     
 def setTimeLimit(formatReference):
     if checkFormat(formatReference, parameters["upperTimeLimit"]) == False:
@@ -133,7 +134,7 @@ def generateTimetable(limits: tuple, trip: tuple):
         current_timeTable = timeTable[lines.index(current_line)]
         current_stations = stations[lines.index(current_line)]
 
-        lineStations = [chr(i) for i in range(ord(current_stations[0]), ord(current_stations[1]))]
+        lineStations = current_stations
         departureTimes = []
         arrivalTimes = []
 

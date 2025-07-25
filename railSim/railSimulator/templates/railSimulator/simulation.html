@@ -62,6 +62,15 @@
                 </div>
             </details>
     </div>
+
+    <div>
+        <h2>Subir archivo</h2>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="file" name="uploaded_file" required>
+            <button type="submit" name="upload_button">Submit</button>
+        </form>
+    </div>
     
     <div style="display: flex; align-items: flex-start; gap: 20px;">
 

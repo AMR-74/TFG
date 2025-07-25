@@ -1,61 +1,64 @@
 import yaml as yml
 import src.dbLibrary as dbl
+import src.generateDiagram as gd
+from robin.supply.entities import Supply
+from datetime import timedelta, datetime
 
 
 #=== GLOBAL VARIABLES ===#
 
-fileName = "./src/supply_data.yaml"
-
 #=== FUNCTIONS ===#
-def openYaml(name:str) -> dict:
-    """
-    Function to read .yaml files to study their capacity.
+def getSimplifiedStation(station:str, stations:list, dictStationsWork:dict):
+    for simplifiedStation in dictStationsWork:
+            if dictStationsWork[simplifiedStation][0] == station:
+                stations.append(simplifiedStation)
 
-    Parameters:
-    name(str): Name/route of the yaml file to read.
 
-    Returns:
-    dict: Data of the yaml file.
-    """
 
-    with open(name, 'r') as file:
-        data = yml.safe_load(file)
 
-    return data
-
-def importData(file:dict) -> None:
+def importData(name:str) -> None:
     """
     Function to transfer data to the database used.
 
     Parameters:
-    file(dict): Dictionary with the data contained in the yaml file.
+    file
 
     Returns:
     None
     """
 
+    supply = Supply.from_yaml(name)
+    base = datetime(1900, 1, 1)
+
     collection = dbl.selectCollection("trainLines", "TFG")
     dbl.deleteCollection(collection)
-    stations = {}
 
+    stationsCorridor = supply.corridors
+    dictStations = stationsCorridor[0].stations
+    dictStationsWork = {}
+    departures = []
+    arrivals = []
+    stations = []
+    prevStation = None
 
-    for i, station in enumerate(file["stations"]):
-        stations[chr(ord("A") + i)] = [station["short_name"],station["id"]]
+    for i, clave in enumerate(dictStations):
+        dictStationsWork[chr(ord('A') + i)] = [clave]
 
-    
-    simplifiedStation = list(stations.keys())
+    for service in supply.services:
+        for i, station in enumerate(service.schedule):
+            if i == 0:
+                origin = station
+                prevStation =  station
+                getSimplifiedStation(station, stations, dictStationsWork)
 
-    for line in file["line"]:
-        lineStations = []
-        route = [stop["station"] for stop in line["stops"]]
+            else:
+                departures.append(base + service.schedule[prevStation][0])
+                arrivals.append(base + service.schedule[station][1])
+                prevStation = station
+                getSimplifiedStation(station, stations, dictStationsWork)
+        
+        dbl.dbInputsTL(service.id, stations, [], [departures, arrivals], "TFG", [])
+        departures = []
+        arrivals = []
 
-        for i, stopStations in enumerate(stations):
-            if stations[stopStations][1] == route[0]:
-                lineStations.append(simplifiedStation[i])
-
-            elif (stations[stopStations][1] == route[-1]) and len(lineStations) != 0:
-                lineStations.append(simplifiedStation[i])
-
-        dbl.dbInputsTL(line["id"],lineStations,[],[],"TFG",[])
-
-importData(openYaml(fileName))
+    gd.generateDiagram()

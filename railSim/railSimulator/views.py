@@ -1,7 +1,9 @@
 from django.shortcuts import render, redirect
 from django.http import JsonResponse
+from django.core.files.storage import FileSystemStorage
 from src import simLibrary
 from src import dbLibrary as dbl
+from src import readYamlFiles as ryf
 import time
 from datetime import datetime
 from src import capacity as cp
@@ -26,6 +28,19 @@ def generate_capacity(request):
 
 def simulator(request):
     if request.method == "POST":
+        if request.FILES.get('uploaded_file'):
+            uploaded_file = request.FILES['uploaded_file']
+            fs = FileSystemStorage()
+            file_name = fs.save(uploaded_file.name, uploaded_file)
+            file_path = fs.path(file_name)
+
+            ryf.importData(file_path)
+
+            # Esperamos un momento para asegurar inserción y generación de imagen (si aplica)
+            time.sleep(2)
+
+            return redirect('simulator')
+
         trip_form = request.POST.get("trip")
         startHour = request.POST.get("startHour")
         endHour = request.POST.get("endHour")
