@@ -6,14 +6,15 @@ from datetime import timedelta, datetime
 
 
 #=== GLOBAL VARIABLES ===#
+name = "C:/Users/alber/Desktop/supply_data.yaml"
 
 #=== FUNCTIONS ===#
-def getSimplifiedStation(station:str, stations:list, dictStationsWork:dict):
+def getSimplifiedStation(station:str, stations:list, dictStationsWork:dict, stationsId:list):
     for simplifiedStation in dictStationsWork:
             if dictStationsWork[simplifiedStation][0] == station:
+                stationsId.append((simplifiedStation, station))
                 stations.append(simplifiedStation)
-
-
+    return stationsId
 
 
 def importData(name:str) -> None:
@@ -28,6 +29,7 @@ def importData(name:str) -> None:
     """
 
     supply = Supply.from_yaml(name)
+    stations = supply.stations
     base = datetime(1900, 1, 1)
 
     collection = dbl.selectCollection("trainLines", "TFG")
@@ -39,6 +41,7 @@ def importData(name:str) -> None:
     departures = []
     arrivals = []
     stations = []
+    stationsId = []
     prevStation = None
 
     for i, clave in enumerate(dictStations):
@@ -49,16 +52,19 @@ def importData(name:str) -> None:
             if i == 0:
                 origin = station
                 prevStation =  station
-                getSimplifiedStation(station, stations, dictStationsWork)
+                getSimplifiedStation(station, stations, dictStationsWork, stationsId)
 
             else:
                 departures.append(base + service.schedule[prevStation][0])
                 arrivals.append(base + service.schedule[station][1])
                 prevStation = station
-                getSimplifiedStation(station, stations, dictStationsWork)
+                getSimplifiedStation(station, stations, dictStationsWork, stationsId)
         
-        dbl.dbInputsTL(service.id, stations, [], [departures, arrivals], "TFG", [])
+        dbl.dbInputsTL(service.id, stations, [], [departures, arrivals], "TFG", [], stationsId)
+        stations = []
+        stationsId = []
         departures = []
         arrivals = []
 
     gd.generateDiagram()
+

@@ -5,10 +5,10 @@ client = MongoClient("mongodb+srv://albertoml2000:ik3x1booKcfJ64De@clustertfgamr
 def getDatabase(db:str):  
     return client[db]
 
-def dbInputsTL(line:int, stations:list, timetable:list, timetableMargins:list, db:str, compressedTt: list):
+def dbInputsTL(line:int, stations:list, timetable:list, timetableMargins:list, db:str, compressedTt: list, stationsId:list):
     db = getDatabase(db)
     collection = db["trainLines"]
-    collection.insert_one({"Linea":line, "Stations":stations, "Timetable":timetable, "Timetable_Margins": timetableMargins, "Compressed_Timetable": compressedTt})
+    collection.insert_one({"Linea":line, "Stations":stations, "Timetable":timetable, "Timetable_Margins": timetableMargins, "Compressed_Timetable": compressedTt, "StationsID": stationsId})
 
 def dbInputsSL(station:str, times:list, db:str):
     db = getDatabase(db)

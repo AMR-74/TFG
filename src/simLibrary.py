@@ -80,7 +80,7 @@ def generateLines(route, min_stations_per_line):
 
     for idx, line in enumerate(generadas):
         listLines = [chr(station) for station in range(ord(line[0]), ord(line[1]) + 1)]
-        dbl.dbInputsTL(idx + 1, listLines, [], [], 'TFG', [])
+        dbl.dbInputsTL(idx + 1, listLines, [], [], 'TFG', [], [])
     
 def setTimeLimit(formatReference):
     if checkFormat(formatReference, parameters["upperTimeLimit"]) == False:
