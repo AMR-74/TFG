@@ -3,7 +3,7 @@ from robin.supply.entities import Supply
 import src.dbLibrary as dbl
 
 #=== GLOBAL VARIABLES ===#
-name = "C:/Users/alber/Desktop/supply_data.yaml"
+
 
 #=== FUNCTIONS ===#
 def getStationData(name:str) -> dict:
@@ -19,7 +19,7 @@ def getDistanceData(data:tuple) -> float:
 
     return processedStationData
 
-def getUsedStationsID() -> list:
+def getDistances(name:str) -> list:
     collection = dbl.readCollection(dbl.selectCollection("trainLines", "TFG"))
     stationData = getDistanceData(getStationData(name))
     distances = []
@@ -49,4 +49,16 @@ def getUsedStationsID() -> list:
 
     return distanceLines
 
-print(getUsedStationsID())
+def cantonDivider(distances:list):
+    longitude = 50
+    distancesLines = []
+    cantons = []
+    for line in distances:
+        for dist in line:
+            cantons.append(int((dist//longitude) + 5))
+        
+        distancesLines.append(cantons)
+        cantons = []
+
+    return distancesLines
+

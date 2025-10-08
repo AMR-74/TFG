@@ -2,11 +2,11 @@ import yaml as yml
 import src.dbLibrary as dbl
 import src.generateDiagram as gd
 from robin.supply.entities import Supply
+import src.cantonCalculator as cc
 from datetime import timedelta, datetime
 
 
 #=== GLOBAL VARIABLES ===#
-name = "C:/Users/alber/Desktop/supply_data.yaml"
 
 #=== FUNCTIONS ===#
 def getSimplifiedStation(station:str, stations:list, dictStationsWork:dict, stationsId:list):
@@ -66,5 +66,9 @@ def importData(name:str) -> None:
         departures = []
         arrivals = []
 
-    gd.generateDiagram()
+    distances_lines = cc.getDistances(name)                 # usa el YAML recién subido
+    canton_lines = cc.cantonDivider(distances_lines)        # cantones por tramo
+    gd.generateDiagram(2, canton_lines)                     # pásalo al diagrama
+
+    
 

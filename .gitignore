@@ -11,3 +11,4 @@ railSim/railSimulator/migrations/__pycache__/
 
 #Files to not sync with the repository
 .coverage
+.env

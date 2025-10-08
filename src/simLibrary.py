@@ -216,7 +216,7 @@ def generateTimetable(limits: tuple, trip: tuple):
         valid_lines.append(current_line)
         valid_timeTables.append(current_timeTable)
 
-    gd.generateDiagram()
+    gd.generateDiagram(1, [])
 
 
 
