@@ -20,7 +20,6 @@ def generateRandomPositions(stations, minDistance=1, maxDistance=5):
     return distance
 
 def _split_times(t0, t1, k: int):
-    """Devuelve [t0, t1, ..., tk] dividiendo [t0, t1] en k partes iguales."""
     try:
         k = max(int(k), 1)
     except:
@@ -32,12 +31,7 @@ def _split_times(t0, t1, k: int):
 
 def generateDiagram(opt: int, canton_lines=None,
                     outputPath: str = "./railSim/railSimulator/static/img/diagrama.png"):
-    """
-    opt:
-      1 -> diagrama normal
-      2 -> diagrama con sub-tramos temporales por cantones (sin solapes dentro del tramo)
-    canton_lines: lista por línea, con nº de cantones por tramo (misma estructura que distancias).
-    """
+
     collection = dbl.selectCollection("trainLines", "TFG")
     lines = list(dbl.readCollection(collection))
 
@@ -54,7 +48,6 @@ def generateDiagram(opt: int, canton_lines=None,
     if os.path.exists(outputPath):
         os.remove(outputPath)
 
-    # 1) Construir segmentos desde la DB
     segments = []
     all_stations = set()
     for idx, line in enumerate(lines):
@@ -74,7 +67,7 @@ def generateDiagram(opt: int, canton_lines=None,
                 "line_index": idx,
                 "seg_index": i,
             })
-            # parada intermedia
+
             segments.append({
                 "station_origin": stations[i + 1],
                 "station_destiny": stations[i + 1],
@@ -85,7 +78,6 @@ def generateDiagram(opt: int, canton_lines=None,
                 "seg_index": None,
             })
 
-    # 2) Inyectar número de cantones por tramo (si viene)
     if canton_lines:
         for seg in segments:
             i = seg["seg_index"]
@@ -93,7 +85,6 @@ def generateDiagram(opt: int, canton_lines=None,
             if i is not None and li < len(canton_lines) and i < len(canton_lines[li]):
                 seg["cantons"] = max(int(canton_lines[li][i]), 1)
 
-    # 3) Ejes y posiciones
     stationlist = sorted(all_stations)
     est_to_x = generateRandomPositions(stationlist, minDistance=1, maxDistance=5)
 
@@ -115,9 +106,8 @@ def generateDiagram(opt: int, canton_lines=None,
         t1 = seg["arrival"]
 
         if opt == 2 and seg.get("seg_index") is not None:
-            # nuevo comportamiento: dividir el tramo en k sub-tramos temporales
             k = int(seg.get("cantons", 1))
-            times = _split_times(t0, t1, k)  # [t0..tk]
+            times = _split_times(t0, t1, k)
             if k <= 1 or x1 == x0 or t1 <= t0:
                 ax.fill_between([x0, x1], t0, t1, color=seg["color"], alpha=0.6)
             else:
@@ -127,7 +117,6 @@ def generateDiagram(opt: int, canton_lines=None,
                     xr = x0 + (j + 1) * dx
                     ax.fill_between([xl, xr], times[j], times[j + 1], color=seg["color"], alpha=0.6)
         else:
-            # modo normal
             ax.fill_between([x0, x1], t0, t1, color=seg["color"], alpha=0.6)
 
     plt.tight_layout()

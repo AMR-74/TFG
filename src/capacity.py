@@ -4,10 +4,10 @@ from datetime import timedelta, datetime
 
 #=== GLOBAL PARAMETERS ===#
 capacityParams = {
-    "stationOrg": "G",
-    "stationEnd": "I",
+    "stationOrg": 'G',
+    "stationEnd": 'H',
     "startHour": "07:00",
-    "endHour": "13:30",
+    "endHour": "23:00",
     "extraTime": timedelta(minutes=30)
 }
 
@@ -35,6 +35,7 @@ def selectTimeZone(stationOrg: str, stationEnd: str, earlyHour: str, endHour: st
         raise ValueError("Estaciones fuera del rángo permitido.")
     
 def identifyLineTimes(opt:int, timeZone:tuple):
+    
     collection = dbl.selectCollection("trainLines", "TFG")
     lines = dbl.readCollection(collection)
        
@@ -44,24 +45,25 @@ def identifyLineTimes(opt:int, timeZone:tuple):
             timesOriginal = line["Timetable_Margins"]
             nLine = line["Linea"]
             stations = line["Stations"]
+            indx_org = stations.index(timeZone[0])
 
-            if ((ord(stations[1]) >= ord(timeZone[0]) >= ord(stations[0])) or (ord(stations[0]) <= ord(timeZone[1]) <= ord(stations[1]))) and (ord(stations[1]) > ord(timeZone[0])) and (stations[0] != timeZone[1]):
-                if ((ord(stations[1]) >= ord(timeZone[0]) >= ord(stations[0])) and (timeZone[2] <= timesOriginal[0][(ord(timeZone[0]) - ord(stations[0]))])):
-                    for i in range(0, (ord(stations[1]) - ord(stations[0]))):
+            if ((ord(stations[-1]) >= ord(timeZone[0]) >= ord(stations[0])) or (ord(stations[0]) <= ord(timeZone[1]) <= ord(stations[-1]))) and (ord(stations[-1]) > ord(timeZone[0])) and (stations[0] != timeZone[1]):
+                if ((ord(stations[-1]) >= ord(timeZone[0]) >= ord(stations[0])) and (timeZone[2] <= timesOriginal[0][indx_org])):
+                    for i in range(0, len(timesOriginal[0])):
                         if (ord(timeZone[1]) > (ord(stations[0]) + i) >= ord(stations[0])):
                             if (timeZone[3] >= timesOriginal[0][i] >= timeZone[2]):
                                 lineasVal.append(nLine)
                                 break
                 
-                elif ((ord(stations[0]) <= ord(timeZone[0])) and (timeZone[2] <= timesOriginal[0][(ord(timeZone[0]) - ord(stations[0]))])):
-                    for i in range(0, (ord(stations[1]) - ord(stations[0]))):
+                elif ((ord(stations[0]) <= ord(timeZone[0])) and (timeZone[2] <= timesOriginal[0][indx_org])):
+                    for i in range(0, len(timesOriginal[0])):
                         if (ord(timeZone[1]) > (ord(stations[0]) + i) >= ord(stations[0])):
                             if (timeZone[3] >= timesOriginal[0][i] >= timeZone[2]):
                                 lineasVal.append(nLine)
                                 break
 
                 elif (ord(timeZone[1]) >= ord(stations[0]) >= ord(timeZone[0])):
-                    for i in range(0, (ord(stations[1]) - ord(stations[0]))):
+                    for i in range(0, len(timesOriginal[0])):
                         if (ord(timeZone[1]) > (ord(stations[0]) + i) >= ord(timeZone[0])):
                             if (timeZone[3] >= timesOriginal[0][i] >= timeZone[2]):
                                 lineasVal.append(nLine)
@@ -73,7 +75,7 @@ def identifyLineTimes(opt:int, timeZone:tuple):
         
         return lineasVal
 
-def adjustAndSave(opt:int, difference:timedelta, line, collection, stationsTimes:dict) -> None:
+def adjustAndSave(opt:int, difference, line, collection, stationsTimes:dict) -> None:
     """
     This function adjust the times for the compressed ones.
 
@@ -95,7 +97,7 @@ def adjustAndSave(opt:int, difference:timedelta, line, collection, stationsTimes
         for departure in line["Compressed_Timetable"][0]:
             departures.append(departure-difference)
 
-        for i, arrival in enumerate(line["Compressed_Timetable"][1]):
+        for i, arrival in enumerate(line["Compressed_Timetable"][-1]):
             arrivals.append(arrival - difference)
             stationsTimes[chr(ord(capacityParams["stationOrg"]) + i)].append(arrival - difference)
 
@@ -107,7 +109,7 @@ def adjustAndSave(opt:int, difference:timedelta, line, collection, stationsTimes
         for departure in line["Compressed_Timetable"][0]:
             departures.append(departure-difference)
 
-        for i, arrival in enumerate(line["Compressed_Timetable"][1]):
+        for i, arrival in enumerate(line["Compressed_Timetable"][-1]):
             arrivals.append(arrival - difference)
             stationsTimes[chr(ord(line["Stations"][0]) + i)].append(arrival - difference)
 
@@ -120,7 +122,7 @@ def adjustAndSave(opt:int, difference:timedelta, line, collection, stationsTimes
         for departure in line["Compressed_Timetable"][0]:
             departures.append(departure + difference)
 
-        for i, arrival in enumerate(line["Compressed_Timetable"][1]):
+        for i, arrival in enumerate(line["Compressed_Timetable"][-1]):
             arrivals.append(arrival + difference)
 
 def compressLines(sortedLines:list, timeZone:tuple) -> dict:
@@ -198,9 +200,13 @@ def compressLines(sortedLines:list, timeZone:tuple) -> dict:
                         maxLines -= 1
 
     for i, time in enumerate(firstLine["Compressed_Timetable"][0]):
-        if (tref == None) or (abs(tref - tact) < abs(stations[chr(ord(firstLine["Stations"][0]) + i)][-1] - time)):
-            tref = stations[chr(ord(firstLine["Stations"][0]) + i)][-1]
+        k = chr(ord(capacityParams["stationOrg"]) + i)   # 'G', 'H', ...
+        if not stations[k]:   # evita [-1] si está vacío
+            continue
+        if (tref is None) or (abs(tref - tact) < abs(stations[k][-1] - time)):
+            tref = stations[k][-1]
             tact = time
+
 
     difference = abs(tact-tref)
     adjustAndSave(3, difference, firstLine, collection, stations)
@@ -253,14 +259,19 @@ def sortStations(validLines:list, stationOrg:str, stationEnd:str) -> list:
     allEntries = []
 
     for line in lines:
+        ct = line.get("Compressed_Timetable")
+        if not ct or len(ct) < 1 or not ct[0]:
+            continue
+        first_departure = ct[0][0]
+
         if line["Linea"] in validLines:
             if ord(stationOrg) >= ord(line["Stations"][0]):
-                stations[stationOrg].append([line["Linea"], line["Compressed_Timetable"][0][0]])
+                stations[stationOrg].append([line["Linea"], first_departure])
 
             else:
                 for i in range(ord(stationOrg), ord(stationEnd) + 1):
-                    if ord(line["Stations"][0]) <= i <= ord(line["Stations"][1]):
-                        stations[chr(i)].append([line["Linea"], line["Compressed_Timetable"][0][0]])
+                    if ord(line["Stations"][0]) <= i <= ord(line["Stations"][-1]):
+                        stations[chr(i)].append([line["Linea"], first_departure])
                         break 
     
 
@@ -281,24 +292,31 @@ def saveLine(numberLine:int, timeZone:tuple):
     lines = dbl.readCollection(collection)
 
     for line in lines:
-        if (line["Linea"] == numberLine):
-            ttOrg = line["Timetable_Margins"]
-            ttSave = []
-            stations = line["Stations"]
-            temporaryList1 = []
-            temporaryList2 = []
+        if line["Linea"] != numberLine:
+            continue
 
-            for i in range(0, (ord(stations[1]) - ord(stations[0]))):
-                if (ord(timeZone[0]) <= (ord(stations[0]) + i) < ord(timeZone[1])):
-                    temporaryList1.append(ttOrg[0][i])
-                    temporaryList2.append(ttOrg[1][i])
+        ttOrg = line["Timetable_Margins"]
+        stations = line["Stations"]
 
-            ttSave.append(temporaryList1)
-            ttSave.append(temporaryList2)
+        # Índices reales dentro de la línea
+        if timeZone[0] not in stations or timeZone[1] not in stations:
+            # Si tu intención es permitir tramos aunque no estén exactas, aquí habría que “aproximar”.
+            return
 
-            dbl.modifyEntry(collection,
-                            {"Linea": numberLine},
-                            {"Compressed_Timetable": ttSave})
+        i0 = stations.index(timeZone[0])
+        i1 = stations.index(timeZone[1])
+
+        if i1 <= i0:
+            return
+
+        # Incluye estación final (i1) si eso es lo que quieres; si no, quita el +1
+        dep = ttOrg[0][i0:i1+1]
+        arr = ttOrg[1][i0:i1+1]
+
+        dbl.modifyEntry(collection,
+                        {"Linea": numberLine},
+                        {"Compressed_Timetable": [dep, arr]})
+
 
 
 def generateSelectedtt():
@@ -316,3 +334,5 @@ def generateSelectedtt():
     ocupation = round(capacityCalculator(stationsC, capacityParams["extraTime"], timeZone), 2)
     
     return ocupation
+
+generateSelectedtt()
