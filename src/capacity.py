@@ -4,10 +4,10 @@ from datetime import timedelta, datetime
 
 #=== GLOBAL PARAMETERS ===#
 capacityParams = {
-    "stationOrg": 'G',
-    "stationEnd": 'H',
-    "startHour": "07:00",
-    "endHour": "23:00",
+    "stationOrg": "A",
+    "stationEnd": "B",
+    "startHour": "00:00",
+    "endHour": "00:00",
     "extraTime": timedelta(minutes=30)
 }
 
@@ -45,6 +45,17 @@ def identifyLineTimes(opt:int, timeZone:tuple):
             timesOriginal = line["Timetable_Margins"]
             nLine = line["Linea"]
             stations = line["Stations"]
+            stations = line["Stations"]
+
+            if timeZone[0] not in stations or timeZone[1] not in stations:
+                continue
+
+            indx_org = stations.index(timeZone[0])
+            indx_end = stations.index(timeZone[1])
+
+            if indx_end <= indx_org:
+                continue
+
             indx_org = stations.index(timeZone[0])
 
             if ((ord(stations[-1]) >= ord(timeZone[0]) >= ord(stations[0])) or (ord(stations[0]) <= ord(timeZone[1]) <= ord(stations[-1]))) and (ord(stations[-1]) > ord(timeZone[0])) and (stations[0] != timeZone[1]):
@@ -334,5 +345,3 @@ def generateSelectedtt():
     ocupation = round(capacityCalculator(stationsC, capacityParams["extraTime"], timeZone), 2)
     
     return ocupation
-
-generateSelectedtt()
