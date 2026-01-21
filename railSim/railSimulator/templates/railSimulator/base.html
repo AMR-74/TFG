@@ -6,10 +6,14 @@
     <meta charset="UTF-8">
     {% load static %}
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="{% static 'railSimulator/style.css' %}">
+    <link rel="stylesheet" href="{% static 'style.css' %}">
+    <link rel="icon" href="{% static 'img/railsys_logo.ico' %}" type="image/x-icon">
 </head>
 
 <body>
+    <header class="site-header">
+        <img src="{% static 'img/railsys_logo.ico' %}" alt="RailSim Logo" class="logo">
+    </header>
     <h1>Enlaces</h1>
     <ul>
         <li><a href="{% url 'home' %}">Menu</a></li>
