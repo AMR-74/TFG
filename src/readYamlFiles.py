@@ -5,70 +5,43 @@ from robin.supply.entities import Supply
 import src.cantonCalculator as cc
 from datetime import timedelta, datetime
 
-
-#=== GLOBAL VARIABLES ===#
-
-#=== FUNCTIONS ===#
 def getSimplifiedStation(station:str, stations:list, dictStationsWork:dict, stationsId:list):
+    """
+    Maps real station names to simplified IDs (A, B, C...).
+    """
     for simplifiedStation in dictStationsWork:
-            if dictStationsWork[simplifiedStation][0] == station:
-                stationsId.append((simplifiedStation, station))
-                stations.append(simplifiedStation)
+        if dictStationsWork[simplifiedStation][0] == station:
+            stationsId.append((simplifiedStation, station))
+            stations.append(simplifiedStation)
     return stationsId
-
 
 def importData(name:str) -> None:
     """
-    Function to transfer data to the database used.
-
-    Parameters:
-    file
-
-    Returns:
-    None
+    Reads a YAML file and imports train services into the database.
+    Uses 'Lines' as the primary key field.
     """
-
     supply = Supply.from_yaml(name)
-    stations = supply.stations
     base = datetime(1900, 1, 1)
-
     collection = dbl.selectCollection("trainLines", "TFG")
     dbl.deleteCollection(collection)
 
-    stationsCorridor = supply.corridors
-    dictStations = stationsCorridor[0].stations
-    dictStationsWork = {}
-    departures = []
-    arrivals = []
-    stations = []
-    stationsId = []
-    prevStation = None
-
-    for i, clave in enumerate(dictStations):
-        dictStationsWork[chr(ord('A') + i)] = [clave]
+    dictStations = supply.corridors[0].stations
+    dictStationsWork = {chr(ord('A') + i): [clave] for i, clave in enumerate(dictStations)}
 
     for service in supply.services:
-        for i, station in enumerate(service.schedule):
-            if i == 0:
-                origin = station
-                prevStation =  station
-                getSimplifiedStation(station, stations, dictStationsWork, stationsId)
+        departures, arrivals, stations, stationsId = [], [], [], []
+        prevStation = None
 
-            else:
+        for i, station in enumerate(service.schedule):
+            getSimplifiedStation(station, stations, dictStationsWork, stationsId)
+            if i > 0:
                 departures.append(base + service.schedule[prevStation][0])
                 arrivals.append(base + service.schedule[station][1])
-                prevStation = station
-                getSimplifiedStation(station, stations, dictStationsWork, stationsId)
+            prevStation = station
         
+        # Insert using Lines instead of Linea
         dbl.dbInputsTL(service.id, stations, [], [departures, arrivals], "TFG", [], stationsId)
-        stations = []
-        stationsId = []
-        departures = []
-        arrivals = []
 
-    distances_lines = cc.getDistances(name)                 # usa el YAML recién subido
-    canton_lines = cc.cantonDivider(distances_lines)        # cantones por tramo
-    gd.generateDiagram(2, canton_lines)                     # pásalo al diagrama
-
-    
-
+    distances_lines = cc.getDistances(name)
+    canton_lines = cc.cantonDivider(distances_lines)
+    gd.generateDiagram(2, canton_lines)

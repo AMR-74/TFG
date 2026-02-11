@@ -5,218 +5,153 @@ import re
 import os
 from datetime import timedelta, datetime
 
-
 #=== GLOBAL VARIABLES ===#
+# This dictionary must exist for views.py to store simulation settings
 parameters = {
     "format": r"^(?:[01]\d|2[0-3]):[0-5]\d$",
     "formatHour": "%H:%M",
-    "trip": None,
-    "upperTimeLimit": None ,
-    "lowerTimeLimit": None,
-    "nLines": None,
+    "trip": 5,
+    "upperTimeLimit": "09:00",
+    "lowerTimeLimit": "21:00",
+    "nLines": 5,
     "hourMargin": 0,
     "lowerMinuteMargin": 10,
-    "higherMinuteMargin": 30,
-    "securityMargin": None,
+    "higherMinuteMargin": 20,
+    "securityMargin": 5,
     "MaxIterations": 500000,
     "lineOffset": 10,
     "minStations": 4
 }
 
-#=== SEED ===#
-ran.seed(ran.randint(1,300))
+# Initialize seed
+ran.seed(ran.randint(1, 300))
 
 #=== FUNCTIONS ===#
-def changeSeed():
-   ran.seed(ran.randint(1,500))
 
-def checkFormat(formatReference,name):
-    if re.match(formatReference, name):
-        return True
-    
-    else:
-        return False
+def changeSeed():
+    """Resets the random seed for variation in simulations."""
+    ran.seed(ran.randint(1, 500))
+
+def checkFormat(formatReference, name):
+    """Validates if a string matches the provided regex format."""
+    return bool(re.match(formatReference, name))
 
 def visualHourFormat(hour):
+    """Converts a datetime object to a string for the Django template."""
     return hour.strftime(parameters["formatHour"])
 
-def generateTrip(n):
-    start = 65
-    if n > 0 and n <= 26:
-        end = 65+n-1
-
-    else:
-        raise ValueError("Supera el máximo de estaciones permitido")
-    
-    return (chr(start),chr(end))
-
-def stationsDefault(trip:list) -> dict:
-    return {chr(i): [] for i in range(ord(trip[0]), ord(trip[1]) + 1)}
-
 def hourFormat(hour, formatHour):
+    """Parses a time string into a datetime object."""
     return datetime.strptime(hour, formatHour)
 
+def generateTrip(n):
+    """Generates an origin-destination tuple (e.g., 'A' to 'E')."""
+    start = 65  # 'A'
+    if 0 < n <= 26:
+        end = 65 + n - 1
+        return (chr(start), chr(end))
+    raise ValueError("Exceeds maximum allowed stations.")
+
 def generateLines(route, min_stations_per_line):
-    estaciones = [chr(i) for i in range(ord(route[0]), ord(route[1]) + 1)]
-    posibles_lineas = []
+    """Generates random train lines and inserts them into the database."""
+    stations_list = [chr(i) for i in range(ord(route[0]), ord(route[1]) + 1)]
+    possible_lines = []
+    for i in range(len(stations_list)):
+        for j in range(i + min_stations_per_line, len(stations_list)):
+            possible_lines.append((stations_list[i], stations_list[j]))
 
-    # Generar TODAS las líneas posibles que tengan al menos `min_stations_per_line` estaciones
-    for i in range(len(estaciones)):
-        for j in range(i + min_stations_per_line, len(estaciones)):
-            posibles_lineas.append((estaciones[i], estaciones[j]))
-
-    if not posibles_lineas:
-        print(f"[ERROR] No hay suficientes estaciones para formar líneas de mínimo {min_stations_per_line} estaciones.")
+    if not possible_lines:
         return
 
-    generadas = []
-    total_a_generar = parameters["nLines"]
+    generated = [ran.choice(possible_lines) for _ in range(parameters["nLines"])]
+    for idx, line in enumerate(generated):
+        list_stations = [chr(s) for s in range(ord(line[0]), ord(line[1]) + 1)]
+        # We use the updated dbInputsTL which expects 'Lines'
+        dbl.dbInputsTL(idx + 1, list_stations, [], [], 'TFG', [], [])
 
-    # Permitir repeticiones de líneas
-    while len(generadas) < total_a_generar:
-        generadas.append(ran.choice(posibles_lineas))
+def setTimeLimit(format_ref):
+    """Validates and returns the simulation time window boundaries."""
+    start = hourFormat(parameters["upperTimeLimit"], parameters["formatHour"])
+    end = hourFormat(parameters["lowerTimeLimit"], parameters["formatHour"])
+    return (start, end)
 
-    print(f"[DEBUG] Líneas generadas: {generadas}", flush=True)
-
-    for idx, line in enumerate(generadas):
-        listLines = [chr(station) for station in range(ord(line[0]), ord(line[1]) + 1)]
-        dbl.dbInputsTL(idx + 1, listLines, [], [], 'TFG', [], [])
-    
-def setTimeLimit(formatReference):
-    if checkFormat(formatReference, parameters["upperTimeLimit"]) == False:
-        raise ValueError("Error en el formato de hora introducido.")
-    
-    else:
-        start = hourFormat(parameters["upperTimeLimit"], parameters["formatHour"])
-    
-    if checkFormat(formatReference, parameters["lowerTimeLimit"]) == False:
-        raise ValueError("Error en el formato de hora introducido.")
-    
-    else:
-        end = hourFormat(parameters["lowerTimeLimit"], parameters["formatHour"])
-
-    return(start, end)
-
-def marginsTimetable(opt:int, times:list, line:int) -> list:
+def marginsTimetable(opt: int, times: list) -> list:
+    """Applies security margins to schedule times."""
+    if not times:
+        return []
+    sec_margin = timedelta(minutes=parameters["securityMargin"])
     if opt == 1:
-        return([times[0]] + [times[i] - timedelta(minutes=parameters["securityMargin"]) for i in range(1, len(times))])
-        
+        return [times[0]] + [t - sec_margin for t in times[1:]]
     elif opt == 2:
-        return([times[i] + timedelta(minutes=parameters["securityMargin"]) for i in range(0, len(times))])
-    
-def conflictDetection(station, newDeparture, newArrival, margin, ocuStations):
-    new_start = newDeparture - margin
-    new_end = newArrival + margin
+        return [t + sec_margin for t in times]
 
-    for start, end in ocuStations[station]:
+def conflictDetection(station, new_dep, new_arr, margin, ocu_stations):
+    """Checks for track occupancy conflicts at a specific station."""
+    new_start = new_dep - margin
+    new_end = new_arr + margin
+    for start, end in ocu_stations.get(station, []):
         if new_start < end and new_end > start:
             return True
     return False
-    
 
 def generateTimetable(limits: tuple, trip: tuple):
-    print("[DEBUG] Entrando en generateTimetable")
+    """Generates a collision-free timetable and triggers diagram generation."""
+    print("--- Starting Timetable Generation ---")
+    collection = dbl.selectCollection("trainLines", 'TFG')
+    lines = dbl.selectData(collection, "Lines")
+    stations = dbl.selectData(collection, "Stations")
+    
+    if not lines:
+        print("[ERROR] No lines found. Did you run generateLines?")
+        return
 
-    lines = dbl.selectData(dbl.selectCollection("trainLines", 'TFG'), "Linea")
-    stations = dbl.selectData(dbl.selectCollection("trainLines", 'TFG'), "Stations")
-    timeTable = dbl.selectData(dbl.selectCollection("trainLines", 'TFG'), "Timetable")
     used_lines = lines.copy()
     valid_lines = []
-    valid_timeTables = []
-
-    ocuStations = {chr(i): [] for i in range(ord(trip[0]), ord(trip[1]) + 1)}
+    ocu_stations = {chr(i): [] for i in range(ord(trip[0]), ord(trip[1]) + 1)}
     security_margin = timedelta(minutes=parameters["securityMargin"])
-
-    print(f"[DEBUG] Líneas disponibles: {used_lines}", flush=True)
 
     while used_lines:
         current_line = ran.choice(used_lines)
-        current_timeTable = timeTable[lines.index(current_line)]
-        current_stations = stations[lines.index(current_line)]
-
-        lineStations = current_stations
-        departureTimes = []
-        arrivalTimes = []
-
-        startLine = limits[0] + timedelta(minutes=len(valid_lines) * parameters["lineOffset"])
-
+        line_idx = lines.index(current_line)
+        current_stations = stations[line_idx]
         iterations = 0
-        validLine = False
+        valid_line = False
 
-        while not validLine:
+        while not valid_line:
             if iterations > parameters["MaxIterations"]:
-                if os.path.exists("./railSim/railSimulator/static/img/diagrama.png"):
-                    os.remove("./railSim/railSimulator/static/img/diagrama.png")
-                
-                print("[ERROR] No se pudo generar horario sin solapamientos.")
+                print(f"[FATAL] Max iterations reached for line {current_line}")
                 return
 
-            startLine = limits[0] + timedelta(minutes=(len(valid_lines) + iterations) * parameters["lineOffset"])
-            departureTimes = []
-            arrivalTimes = []
+            start_time = limits[0] + timedelta(minutes=(len(valid_lines) + iterations) * parameters["lineOffset"])
+            departure_times, arrival_times = [], []
             conflicts = False
 
-            for idx, station in enumerate(lineStations):
-                segmentDuration = timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], parameters["higherMinuteMargin"]))
+            for i, st in enumerate(current_stations):
+                duration = timedelta(minutes=ran.randint(parameters["lowerMinuteMargin"], parameters["higherMinuteMargin"]))
+                dep = start_time if i == 0 else arrival_times[-1]
+                arr = dep + duration
 
-                if idx == 0:
-                    departure = startLine
-                else:
-                    departure = arrivalTimes[-1]
-
-                arrival = departure + segmentDuration
-
-                if arrival > limits[1] or departure > limits[1]:
+                if arr > limits[1] or conflictDetection(st, dep, arr, security_margin, ocu_stations):
                     conflicts = True
                     break
-
-                if conflictDetection(station, departure, arrival, security_margin, ocuStations):
-                    conflicts = True
-                    break
-
-                departureTimes.append(departure)
-                arrivalTimes.append(arrival)
+                departure_times.append(dep)
+                arrival_times.append(arr)
 
             if not conflicts:
-                for i, station in enumerate(lineStations):
-                    start_ocup = departureTimes[i] - security_margin
-                    end_ocup = arrivalTimes[i] + security_margin
-                    ocuStations[station].append((start_ocup, end_ocup))
-
-                validLine = True
+                for i, st in enumerate(current_stations):
+                    ocu_stations[st].append((departure_times[i] - security_margin, arrival_times[i] + security_margin))
+                valid_line = True
             else:
                 iterations += 1
 
-
-        current_timeTable.append(departureTimes)
-        current_timeTable.append(arrivalTimes)
-
-        try:
-            result1 = dbl.modifyEntry(
-                dbl.selectCollection("trainLines", 'TFG'),
-                {"Linea": current_line},
-                {"Timetable": current_timeTable}
-            )
-
-            result2 = dbl.modifyEntry(
-                dbl.selectCollection("trainLines", 'TFG'),
-                {"Linea": current_line},
-                {
-                    "Timetable_Margins": [
-                        marginsTimetable(1, departureTimes, current_line),
-                        marginsTimetable(2, arrivalTimes, current_line)
-                    ]
-                }
-            )
-
-        except Exception as e:
-            print(f"[ERROR] Fallo modificando MongoDB para {current_line}: {e}", flush=True)
+        # Update MongoDB with 'Lines' key
+        dbl.modifyEntry(collection, {"Lines": current_line}, {"Timetable": [departure_times, arrival_times]})
+        dbl.modifyEntry(collection, {"Lines": current_line}, {
+            "Timetable_Margins": [marginsTimetable(1, departure_times), marginsTimetable(2, arrival_times)]
+        })
 
         used_lines.remove(current_line)
         valid_lines.append(current_line)
-        valid_timeTables.append(current_timeTable)
 
+    print("[SUCCESS] Timetable finished. Generating diagram...")
     gd.generateDiagram(1, [])
-
-
-
