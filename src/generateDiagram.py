@@ -52,6 +52,7 @@ def generateDiagram(opt: int, canton_lines=None, outputPath: str = "./railSim/ra
         "#228B22", "#00CED1", "#FF1493", "#C71585", "#A0522D", "#6A5ACD",
         "#20B2AA", "#FFD700", "#8C564B", "#E377C2",
     ]
+    
     segments = []
     all_stations = set()
 

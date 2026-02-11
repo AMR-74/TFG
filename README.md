@@ -44,19 +44,21 @@ Prerrequisitos
 • Virtualenv
 ### 1. Configuración del entorno
 ```text
-Crear y activar entorno virtual
-python -m venv tfg_env
-source tfg_env/bin/activate  # Linux/Mac
-.\tfg_env\Scripts\activate   # Windows
+Se podrá proceder de 2 maneras, usando el archivo prepareWorkspace.bat, que configura la instalación de un entorno virtual
+en el directorio donde se almacene el repositorio de manera local.
+
+O en el caso de preferirlo, se podrá crear el entorno virtual con venv, de manera manual, siempre que se cree en la raiz del proyecto.
 ```
 ### 2. Instalar dependencias
+De la misma manera que en el punto anterior, el archivo prepareWorkspace.bat, gestiona la instalación de dependencias, en el caso de que se quiera
+realizar de manera manual, se procede, activando el entorno virtual mediante línea de comando y posteriormente ejecutando el siguiente comando:
+
 pip install -r requirements.txt
 ### 3. Ejecutar la aplicación web
-Navega al directorio del proyecto Django y ejecuta el servidor:
-```text
-cd railSim
-python manage.py runserver
-La aplicación estará disponible en http://127.0.0.1:8000/.
+Se dispone de un archivo startWorkspace.bat, que inicializa el entorno virtual previamente creado y lanza el servidor de desarrollo de Django.
+Si se desea realizar de manera manual, se debe ejecutar el siguiente comando, con el entorno virtual activo, y en el directorio raiz del proyecto:
+
+python railSim\manage.py runserver
 ```
 ## Tecnologías
 ```text
@@ -65,4 +67,4 @@ La aplicación estará disponible en http://127.0.0.1:8000/.
 • Datos: MongoDB
 ```
 ## Autores
-• AMR - Desarrollo del TFG
+• Alberto Martín - Desarrollo del TFG
