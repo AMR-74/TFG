@@ -4,20 +4,46 @@
 {% block content %}
     <h1>RAILSYS</h1>
     <div class="container">
+
+        {% if messages %}
+            <div style="margin-bottom: 20px;">
+                {% for message in messages %}
+                    <div style="padding: 15px; border-radius: 5px; margin-bottom: 10px; font-weight: bold;
+                        {% if message.tags == 'error' %} 
+                            background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; /* Rojo para error */
+                        {% elif message.tags == 'success' %} 
+                            background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; /* Verde para éxito */
+                        {% else %}
+                            background-color: #cce5ff; color: #004085; border: 1px solid #b8daff; /* Azul por defecto */
+                        {% endif %}">
+                        
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
         <div class="panel" style="margin-bottom: 40px;">
-            <h2>Timetable Generator</h2>
-            <form method="post">
-                {% csrf_token %}
-                <label>Trip (Nº of stations): <input type="number" id="trip" name="trip"></label>
-                <label>Start Hour (HH:mm): <input type="text" id="startHour" name="startHour"></label>
-                <label>End Hour (HH:mm): <input type="text" id="endHour" name="endHour"></label>
-                <label>Lines: <input type="number" id="lines" name="lines"></label><br>
-                <label>Lower minute margin (minutes): <input type="number" id="lMargin" name="lMargin"></label>
-                <label>Higer minute margin (minutes): <input type="number" id="hMargin" name="hMargin"></label>
-                <label>Security Margin (minutes): <input type="number" id="secuMargin" name="secuMargin"></label>
-                <button type="submit">Submit</button>
-            </form>
-        </div>
+    <h2>Timetable Generator</h2>
+    <form method="post">
+        {% csrf_token %}
+        
+        <label>Trip Length (Stations): <input type="number" name="trip" value="{{ trip }}" required></label>
+        
+        <label>Start Hour (HH:MM): <input type="text" name="startHour" value="{{ startHour }}" placeholder="06:00" required></label>
+        
+        <label>End Hour (HH:MM): <input type="text" name="endHour" value="{{ endHour }}" placeholder="23:00" required></label>
+        
+        <label>Number of Lines: <input type="number" name="lines" value="{{ lines }}" required></label>
+        
+        <label>Security Margin (min): <input type="number" name="secuMargin" value="{{ secuMargin }}" required></label>
+        
+        <label>Lower Duration Margin: <input type="number" name="lMargin" value="{{ request.session.lMargin }}" required></label>
+        
+        <label>Higher Duration Margin: <input type="number" name="hMargin" value="{{ request.session.hMargin }}" required></label>
+
+        <button type="submit" style="margin-top: 10px;">Generate Simulation</button>
+    </form>
+</div>
         <!-- Formulario Capacidad -->
         <details>
             <summary style="font-weight: bold; font-size: 18px; cursor: pointer;">Capacity</summary>

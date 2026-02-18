@@ -247,16 +247,31 @@ def saveLine(numberLine:int, timeZone:tuple):
 
         dbl.modifyEntry(collection, {"Lines": numberLine}, {"Compressed_Timetable": [dep, arr]})
 
-def generateSelectedtt():
+def generateSelectedtt(stationOrg, stationEnd, startHour, endHour):
     """
     Main execution flow for capacity analysis.
+    Recibe los datos desde la vista, actualiza los parámetros y calcula.
     """
-    timeZone = selectTimeZone(capacityParams["stationOrg"], capacityParams["stationEnd"], capacityParams["startHour"], capacityParams["endHour"])
+    # 1. Actualizamos los parámetros globales con lo que viene del formulario
+    capacityParams["stationOrg"] = stationOrg
+    capacityParams["stationEnd"] = stationEnd
+    capacityParams["startHour"] = startHour
+    capacityParams["endHour"] = endHour
+
+    # 2. Validamos (selectTimeZone lanzará ValueError si el formato es malo)
+    timeZone = selectTimeZone(stationOrg, stationEnd, startHour, endHour)
+    
+    # 3. Ejecutamos la lógica
     linesVal = identifyLineTimes(2, timeZone)
+
+    # Si no hay líneas en ese rango, evitamos errores posteriores
+    if not linesVal:
+        raise ValueError("No se encontraron líneas en ese rango horario/estaciones.")
 
     for lineIndex in linesVal:
         saveLine(lineIndex, timeZone)
 
-    sortedLines = sortStations(linesVal, capacityParams["stationOrg"], capacityParams["stationEnd"])
+    sortedLines = sortStations(linesVal, stationOrg, stationEnd)
     stationsC = compressLines(sortedLines, timeZone)
+    
     return round(capacityCalculator(stationsC, capacityParams["extraTime"], timeZone), 2)
