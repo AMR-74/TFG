@@ -59,7 +59,6 @@ Se dispone de un archivo startWorkspace.bat, que inicializa el entorno virtual p
 Si se desea realizar de manera manual, se debe ejecutar el siguiente comando, con el entorno virtual activo, y en el directorio raiz del proyecto:
 
 python railSim\manage.py runserver
-```
 ## Tecnologías
 ```text
 • Lógica: Python (Scripts en src/)
