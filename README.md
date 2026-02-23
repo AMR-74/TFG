@@ -40,7 +40,7 @@ La organización del código separa la lógica de simulación (`src`) del framew
 ```
 ## Instalación y Despliegue
 Prerrequisitos
-• Python 3.x
+• Python 3.11 o superior
 • Virtualenv
 ### 1. Configuración del entorno
 ```text

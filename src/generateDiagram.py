@@ -15,33 +15,27 @@ def generateRandomPositions(stations, minDistance=1, maxDistance=5):
         position += ran.randint(minDistance, maxDistance)
     return distance
 
-def generateDiagram(opt: int, canton_lines=None, outputPath: str = "./railSim/railSimulator/static/img/diagrama.png"):
+def split_times(t0, t1, k: int):
+    """Devuelve [t0, t1, ..., tk] dividiendo [t0, t1] en k partes iguales."""
+    try:
+        k = max(int(k), 1)
+    except:
+        k = 1
+    if k == 1 or t1 <= t0:
+        return [t0, t1]
+    delta = (t1 - t0) / k
+    return [t0 + j * delta for j in range(k + 1)]
+
+def generateDiagram(opt: int, canton_lines=None,
+                    outputPath: str = "./railSim/railSimulator/static/img/diagrama.png"):
     """
-    Generates the train graph. 
-    Includes logs to debug why the file might not be updating.
+    opt:
+      1 -> diagrama normal
+      2 -> diagrama con sub-tramos temporales por cantones (sin solapes dentro del tramo)
+    canton_lines: lista por línea, con nº de cantones por tramo (misma estructura que distancias).
     """
-    print(f"--- Starting Diagram Generation at {outputPath} ---")
-    
-    # 1. Ensure directory exists
-    outputDir = os.path.dirname(outputPath)
-    if not os.path.exists(outputDir):
-        os.makedirs(outputDir, exist_ok=True)
-        
-    # 2. Get data using the 'Lines' key
     collection = dbl.selectCollection("trainLines", "TFG")
     lines = list(dbl.readCollection(collection))
-    
-    if not lines:
-        print("[WARNING] No lines found in MongoDB. Diagram will not be generated.")
-        return
-
-    # 3. Handle file removal with protection
-    if os.path.exists(outputPath):
-        try:
-            os.remove(outputPath)
-            print("[INFO] Existing diagram deleted successfully.")
-        except Exception as e:
-            print(f"[ERROR] Could not delete old diagram (file might be locked): {e}")
 
     colors = [
         "#E6194B", "#3CB44B", "#FFE119", "#0082C8", "#F58231", "#911EB4",
@@ -52,23 +46,18 @@ def generateDiagram(opt: int, canton_lines=None, outputPath: str = "./railSim/ra
         "#228B22", "#00CED1", "#FF1493", "#C71585", "#A0522D", "#6A5ACD",
         "#20B2AA", "#FFD700", "#8C564B", "#E377C2",
     ]
-    
+
+    if os.path.exists(outputPath):
+        os.remove(outputPath)
+
+    # 1) Construir segmentos desde la DB
     segments = []
     all_stations = set()
-
-    # 4. Process segments
     for idx, line in enumerate(lines):
-        # We look specifically for Timetable_Margins (created in simLibrary)
-        margins = line.get("Timetable_Margins")
-        stations = line.get("Stations")
-
-        if not margins or not stations:
-            print(f"[DEBUG] Line {line.get('Lines')} skipped: Missing margins or stations.")
-            continue
-        
         color = colors[idx % len(colors)]
-        departures = margins[0]
-        arrivals = margins[1]
+        departures = line["Timetable_Margins"][0]  # datetimes
+        arrivals   = line["Timetable_Margins"][1]  # datetimes
+        stations   = line["Stations"]
         all_stations.update(stations)
 
         for i in range(len(departures) - 1):
@@ -77,31 +66,66 @@ def generateDiagram(opt: int, canton_lines=None, outputPath: str = "./railSim/ra
                 "station_destiny": stations[i + 1],
                 "departure": departures[i],
                 "arrival": arrivals[i],
-                "color": color
+                "color": color,
+                "line_index": idx,
+                "seg_index": i,
+            })
+            # parada intermedia
+            segments.append({
+                "station_origin": stations[i + 1],
+                "station_destiny": stations[i + 1],
+                "departure": arrivals[i],
+                "arrival": departures[i + 1],
+                "color": color,
+                "line_index": idx,
+                "seg_index": None,
             })
 
-    if not segments:
-        print("[WARNING] No segments found to draw. Check if Timetable_Margins are populated.")
-        return
+    # 2) Inyectar número de cantones por tramo (si viene)
+    if canton_lines:
+        for seg in segments:
+            i = seg["seg_index"]
+            li = seg["line_index"]
+            if i is not None and li < len(canton_lines) and i < len(canton_lines[li]):
+                seg["cantons"] = max(int(canton_lines[li][i]), 1)
 
-    # 5. Drawing
-    print(f"[INFO] Drawing {len(segments)} segments...")
+    # 3) Ejes y posiciones
     stationlist = sorted(all_stations)
-    est_to_x = generateRandomPositions(stationlist)
+    est_to_x = generateRandomPositions(stationlist, minDistance=1, maxDistance=5)
 
-    plt.figure(figsize=(12, 6))
-    ax = plt.gca()
+    fig, ax = plt.subplots(figsize=(12, 6))
     ax.set_xticks(list(est_to_x.values()))
     ax.set_xticklabels(list(est_to_x.keys()))
-    ax.invert_yaxis()
+    ax.set_title("Diagrama de horarios de trenes")
     ax.yaxis.set_major_formatter(mdates.DateFormatter('%H:%M'))
+    ax.yaxis.set_major_locator(mdates.HourLocator(interval=1))
+    ax.set_ylabel("Hora")
+    ax.set_xlabel("Estaciones")
+    ax.invert_yaxis()
 
+    # 4) Pintado
     for seg in segments:
-        x0, x1 = est_to_x[seg["station_origin"]], est_to_x[seg["station_destiny"]]
-        t0, t1 = seg["departure"], seg["arrival"]
-        ax.fill_between([x0, x1], t0, t1, color=seg["color"], alpha=0.6)
+        x0 = est_to_x[seg["station_origin"]]
+        x1 = est_to_x[seg["station_destiny"]]
+        t0 = seg["departure"]
+        t1 = seg["arrival"]
+
+        if opt == 2 and seg.get("seg_index") is not None:
+            # nuevo comportamiento: dividir el tramo en k sub-tramos temporales
+            k = int(seg.get("cantons", 1))
+            times = split_times(t0, t1, k)  # [t0..tk]
+            if k <= 1 or x1 == x0 or t1 <= t0:
+                ax.fill_between([x0, x1], t0, t1, color=seg["color"], alpha=0.6)
+            else:
+                dx = (x1 - x0) / k
+                for j in range(k):
+                    xl = x0 + j * dx
+                    xr = x0 + (j + 1) * dx
+                    ax.fill_between([xl, xr], times[j], times[j + 1], color=seg["color"], alpha=0.6)
+        else:
+            # modo normal
+            ax.fill_between([x0, x1], t0, t1, color=seg["color"], alpha=0.6)
 
     plt.tight_layout()
     plt.savefig(outputPath)
-    plt.close('all') # Important to free memory and file handles
-    print(f"--- Diagram Successfully Saved ---")
+    plt.close()
