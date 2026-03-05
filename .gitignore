@@ -13,3 +13,4 @@ railSim/railSimulator/migrations/__pycache__/
 .coverage
 .env
 .yaml
+*.png

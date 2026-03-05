@@ -42,19 +42,15 @@ La organización del código separa la lógica de simulación (`src`) del framew
 Prerrequisitos
 • Python 3.11 o superior
 • Virtualenv
+• Poetry
+
 ### 1. Configuración del entorno
 ```text
 Se podrá proceder de 2 maneras, usando el archivo prepareWorkspace.bat, que configura la instalación de un entorno virtual
 en el directorio donde se almacene el repositorio de manera local.
-
-O en el caso de preferirlo, se podrá crear el entorno virtual con venv, de manera manual, siempre que se cree en la raiz del proyecto.
 ```
-### 2. Instalar dependencias
-De la misma manera que en el punto anterior, el archivo prepareWorkspace.bat, gestiona la instalación de dependencias, en el caso de que se quiera
-realizar de manera manual, se procede, activando el entorno virtual mediante línea de comando y posteriormente ejecutando el siguiente comando:
 
-pip install -r requirements.txt
-### 3. Ejecutar la aplicación web
+### 2. Ejecutar la aplicación web
 Se dispone de un archivo startWorkspace.bat, que inicializa el entorno virtual previamente creado y lanza el servidor de desarrollo de Django.
 Si se desea realizar de manera manual, se debe ejecutar el siguiente comando, con el entorno virtual activo, y en el directorio raiz del proyecto:
 
