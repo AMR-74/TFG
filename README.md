@@ -35,8 +35,7 @@ La organización del código separa la lógica de simulación (`src`) del framew
 │   ├── readYamlFiles.py
 │   ├── simLibrary.py
 │   └── supply_data.yaml    # Datos de simulación locales
-├── supply_data.yaml        # Archivo de datos en raíz
-└── requirements.txt        # Dependencias del proyecto
+└── supply_data.yaml        # Archivo de datos en raíz
 ```
 ## Instalación y Despliegue
 Prerrequisitos
