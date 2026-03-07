@@ -52,14 +52,15 @@ def identify_line_times(option, timeZone):
             lineNumber = line["Lines"]
             stationsList = line["Stations"]
 
-            start_char = max(timeZone[0], stationsList[0])
-            end_char = min(timeZone[1], stationsList[-1])
-
-            if start_char >= end_char:
+            # Filter stations that belong strictly to the requested timeZone
+            validStations = [s for s in stationsList if timeZone[0] <= s <= timeZone[1]]
+            
+            # If the train has less than 2 stations in this zone, there is no route segment
+            if len(validStations) < 2:
                 continue
 
-            i0 = stationsList.index(start_char)
-            i1 = stationsList.index(end_char)
+            i0 = stationsList.index(validStations[0])
+            i1 = stationsList.index(validStations[-1])
 
             valid = False
             for i in range(i0, i1):
@@ -79,32 +80,19 @@ def adjust_and_save(option, difference, lineData, collection, stationsTimes):
     """
     departuresList = []
     arrivalsList = []
+    
+    compStations = lineData.get("Compressed_Stations", lineData["Stations"])
 
-    if option == 1:
+    if option == 1 or option == 2:
         for departure in lineData["Compressed_Timetable"][0]:
             departuresList.append(departure - difference)
 
         for i, arrival in enumerate(lineData["Compressed_Timetable"][-1]):
             arrivalsList.append(arrival - difference)
-            stationsTimes[chr(ord(CAPACITY_PARAMS["stationOrg"]) + i)].append(
-                arrival - difference
-            )
-
-        dbl.modify_entry(
-            collection,
-            {"Lines": lineData["Lines"]},
-            {"Compressed_Timetable": [departuresList, arrivalsList]},
-        )
-
-    elif option == 2:
-        for departure in lineData["Compressed_Timetable"][0]:
-            departuresList.append(departure - difference)
-
-        for i, arrival in enumerate(lineData["Compressed_Timetable"][-1]):
-            arrivalsList.append(arrival - difference)
-            stationsTimes[chr(ord(lineData["Stations"][0]) + i)].append(
-                arrival - difference
-            )
+            
+            station_key = compStations[i + 1]
+            if station_key in stationsTimes:
+                stationsTimes[station_key].append(arrival - difference)
 
         dbl.modify_entry(
             collection,
@@ -119,12 +107,9 @@ def adjust_and_save(option, difference, lineData, collection, stationsTimes):
         for i, arrival in enumerate(lineData["Compressed_Timetable"][-1]):
             arrivalsList.append(arrival + difference)
             
-            if ord(lineData["Stations"][0]) <= ord(CAPACITY_PARAMS["stationOrg"]):
-                station_key = chr(ord(CAPACITY_PARAMS["stationOrg"]) + i)
-            else:
-                station_key = chr(ord(lineData["Stations"][0]) + i)
-                
-            stationsTimes[station_key].append(arrival + difference)
+            station_key = compStations[i + 1]
+            if station_key in stationsTimes:
+                stationsTimes[station_key].append(arrival + difference)
 
 
 def compress_lines(sortedLines, timeZone):
@@ -148,70 +133,73 @@ def compress_lines(sortedLines, timeZone):
 
         for line in allLines:
             if line["Lines"] == sLine:
+                compStations = line.get("Compressed_Stations", line["Stations"])
+                
                 if maxLinesCount == len(sortedLines):
                     firstLine = line
                     refTime = timeZone[2]
                     for t in line["Compressed_Timetable"][0]:
-                        if currentTime is None:
-                            currentTime = t
-                        elif currentTime > t:
+                        if currentTime is None or currentTime > t:
                             currentTime = t
 
                     timeDifference = abs(currentTime - refTime)
-                    if ord(line["Stations"][0]) <= ord(CAPACITY_PARAMS["stationOrg"]):
-                        adjust_and_save(
-                            1, timeDifference, line, collection, stationsData
-                        )
+                    if ord(compStations[0]) <= ord(CAPACITY_PARAMS["stationOrg"]):
+                        adjust_and_save(1, timeDifference, line, collection, stationsData)
                     else:
-                        adjust_and_save(
-                            2, timeDifference, line, collection, stationsData
-                        )
+                        adjust_and_save(2, timeDifference, line, collection, stationsData)
                     refTime, currentTime = None, None
                     maxLinesCount -= 1
 
                 else:
-                    # Logic for subsequent lines compression
-                    if ord(line["Stations"][0]) <= ord(CAPACITY_PARAMS["stationOrg"]):
+                    if ord(compStations[0]) <= ord(CAPACITY_PARAMS["stationOrg"]):
                         for i, t in enumerate(line["Compressed_Timetable"][0]):
-                            stationKey = chr(ord(CAPACITY_PARAMS["stationOrg"]) + i)
-                            if len(stationsData[stationKey]) > 0:
-                                if (refTime is None) or (abs(refTime - currentTime)) > (
-                                    abs(stationsData[stationKey][-1] - t)
-                                ):
+                            stationKey = compStations[i]
+                            if stationKey in stationsData and len(stationsData[stationKey]) > 0:
+                                if (refTime is None) or (abs(refTime - currentTime)) > (abs(stationsData[stationKey][-1] - t)):
                                     refTime = stationsData[stationKey][-1]
                                     currentTime = t
+                        
+                        if refTime is None:
+                            refTime = timeZone[2]
+                            for t in line["Compressed_Timetable"][0]:
+                                if currentTime is None or currentTime > t:
+                                    currentTime = t
+
                         timeDifference = abs(currentTime - refTime)
-                        adjust_and_save(
-                            1, timeDifference, line, collection, stationsData
-                        )
+                        adjust_and_save(1, timeDifference, line, collection, stationsData)
                     else:
                         for i, t in enumerate(line["Compressed_Timetable"][0]):
-                            stationKey = chr(ord(line["Stations"][0]) + i)
-                            if len(stationsData[stationKey]) > 0:
-                                if (refTime is None) or (abs(refTime - currentTime)) > (
-                                    abs(stationsData[stationKey][-1] - t)
-                                ):
+                            stationKey = compStations[i]
+                            if stationKey in stationsData and len(stationsData[stationKey]) > 0:
+                                if (refTime is None) or (abs(refTime - currentTime)) > (abs(stationsData[stationKey][-1] - t)):
                                     refTime = stationsData[stationKey][-1]
                                     currentTime = t
+                                    
+                        if refTime is None:
+                            refTime = timeZone[2]
+                            for t in line["Compressed_Timetable"][0]:
+                                if currentTime is None or currentTime > t:
+                                    currentTime = t
+                        
                         timeDifference = abs(currentTime - refTime)
-                        adjust_and_save(
-                            2, timeDifference, line, collection, stationsData
-                        )
+                        adjust_and_save(2, timeDifference, line, collection, stationsData)
                         maxLinesCount -= 1
                     refTime, currentTime = None, None
 
-    # Final adjustment for the first line
+    compStations = firstLine.get("Compressed_Stations", firstLine["Stations"])
     for i, t in enumerate(firstLine["Compressed_Timetable"][0]):
-        stationKey = chr(ord(CAPACITY_PARAMS["stationOrg"]) + i)
-        if not stationsData[stationKey]:
+        stationKey = compStations[i]
+        if stationKey not in stationsData or not stationsData[stationKey]:
             continue
-        if (refTime is None) or (
-            abs(refTime - currentTime) < abs(stationsData[stationKey][-1] - t)
-        ):
+        if (refTime is None) or (abs(refTime - currentTime) < abs(stationsData[stationKey][-1] - t)):
             refTime = stationsData[stationKey][-1]
             currentTime = t
 
-    timeDifference = abs(currentTime - refTime)
+    if refTime is None:
+        timeDifference = timedelta(minutes=0)
+    else:
+        timeDifference = abs(currentTime - refTime)
+    
     adjust_and_save(3, timeDifference, firstLine, collection, stationsData)
     return stationsData
 
@@ -257,11 +245,12 @@ def sort_stations(validLines, stationOrg, stationEnd):
         firstDeparture = ct[0][0]
 
         if line["Lines"] in validLines:
-            if ord(stationOrg) >= ord(line["Stations"][0]):
+            compStations = line.get("Compressed_Stations", line["Stations"])
+            if ord(stationOrg) >= ord(compStations[0]):
                 stationsMap[stationOrg].append([line["Lines"], firstDeparture])
             else:
                 for i in range(ord(stationOrg), ord(stationEnd) + 1):
-                    if ord(line["Stations"][0]) <= i <= ord(line["Stations"][-1]):
+                    if ord(compStations[0]) <= i <= ord(compStations[-1]):
                         stationsMap[chr(i)].append([line["Lines"], firstDeparture])
                         break
 
@@ -285,25 +274,26 @@ def save_line(lineNumber, timeZone):
             
         stationsList = line["Stations"]
         
-        start_char = max(timeZone[0], stationsList[0])
-        end_char = min(timeZone[1], stationsList[-1])
+        validStations = [s for s in stationsList if timeZone[0] <= s <= timeZone[1]]
         
-        if start_char > end_char:
-            return 
-
-        i0 = stationsList.index(start_char)
-        i1 = stationsList.index(end_char)
-        
-        if i0 >= i1:
+        if len(validStations) < 2:
             return
+
+        i0 = stationsList.index(validStations[0])
+        i1 = stationsList.index(validStations[-1])
 
         depSlice = line["Timetable_Margins"][0][i0 : i1]
         arrSlice = line["Timetable_Margins"][1][i0 : i1]
+        
+        compStations = stationsList[i0 : i1 + 1]
 
         dbl.modify_entry(
             collection,
             {"Lines": lineNumber},
-            {"Compressed_Timetable": [depSlice, arrSlice]},
+            {
+                "Compressed_Timetable": [depSlice, arrSlice],
+                "Compressed_Stations": compStations
+            },
         )
 
 

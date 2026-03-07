@@ -3,7 +3,7 @@ from robin.supply.entities import Supply
 import src.dbLibrary as dbl
 
 # === CONSTANTS ===
-BLOCK_LONGITUDE_THRESHOLD = 50
+BLOCK_LONGITUDE_THRESHOLD = 30
 
 # === FUNCTIONS ===
 
