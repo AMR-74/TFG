@@ -1,65 +1,89 @@
 from pymongo import MongoClient
 
+# === GLOBAL CONSTANTS ===
 # MongoDB connection client
-client = MongoClient("mongodb+srv://albertoml2000:ik3x1booKcfJ64De@clustertfgamr.5sbnm.mongodb.net/")
+MONGO_CLIENT = MongoClient(
+    "mongodb+srv://albertoml2000:ik3x1booKcfJ64De@clustertfgamr.5sbnm.mongodb.net/"
+)
 
-def getDatabase(db:str):  
+
+def get_database(dbName):
     """
     Returns the database object for the specified name.
     """
-    return client[db]
+    return MONGO_CLIENT[dbName]
 
-def dbInputsTL(line:int, stations:list, timetable:list, timetableMargins:list, db:str, compressedTt: list, stationsId:list):
+
+def db_inputs_tl(
+    lineId,
+    stationsList,
+    timetableList,
+    timetableMargins,
+    dbName,
+    compressedTt,
+    stationsId,
+):
     """
     Inserts train line data into the 'trainLines' collection.
     Replaced 'Linea' with 'Lines' for consistency.
     """
-    db = getDatabase(db)
-    collection = db["trainLines"]
-    collection.insert_one({
-        "Lines": line, 
-        "Stations": stations, 
-        "Timetable": timetable, 
-        "Timetable_Margins": timetableMargins, 
-        "Compressed_Timetable": compressedTt, 
-        "StationsID": stationsId
-    })
+    database = get_database(dbName)
+    collection = database["trainLines"]
+    collection.insert_one(
+        {
+            "Lines": lineId,
+            "Stations": stationsList,
+            "Timetable": timetableList,
+            "Timetable_Margins": timetableMargins,
+            "Compressed_Timetable": compressedTt,
+            "StationsID": stationsId,
+        }
+    )
 
-def dbInputsSL(station:str, times:list, db:str):
+
+def db_inputs_sl(stationName, timesList, dbName):
     """
     Inserts simulation line data for a specific station.
     """
-    db = getDatabase(db)
-    collection = db["simulationLines"]
-    collection.insert_one({"Station": station, "Hours": times})
+    database = get_database(dbName)
+    collection = database["simulationLines"]
+    collection.insert_one({"Station": stationName, "Hours": timesList})
 
-def selectCollection(collection:str, db:str):
+
+def select_collection(collectionName, dbName):
     """
     Retrieves a specific collection from a database.
     """
-    db = getDatabase(db)
-    return db[collection]
+    database = get_database(dbName)
+    return database[collectionName]
 
-def readCollection(collection):
+
+def read_collection(collectionObject):
     """
     Returns a cursor with all documents in the collection.
     """
-    return collection.find()
+    return collectionObject.find()
 
-def selectData(collection, property:str) -> list:
+
+def select_data(collectionObject, propertyName):
     """
     Returns a list of values for a specific property from the collection.
     """
-    return [data[property] for data in collection.find({}, {property:1, "_id":0})]
+    return [
+        data[propertyName]
+        for data in collectionObject.find({}, {propertyName: 1, "_id": 0})
+    ]
 
-def modifyEntry(collection, id:dict, data:dict):
+
+def modify_entry(collectionObject, filterId, updateData):
     """
     Updates a single document based on the filter provided.
     """
-    collection.update_one(id, {"$set": data})
+    collectionObject.update_one(filterId, {"$set": updateData})
 
-def deleteCollection(collection):
+
+def delete_collection(collectionObject):
     """
     Deletes all documents in a collection.
     """
-    collection.delete_many({})
+    collectionObject.delete_many({})
