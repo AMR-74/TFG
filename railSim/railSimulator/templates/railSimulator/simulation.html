@@ -106,7 +106,7 @@
         <table border="1">
             <thead>
                 <tr>
-                    <th>Linea</th>
+                    <th>Line</th>
                     <th>Stations</th>
                     <th>Departure Times</th>
                     <th>Arrival Times</th>
@@ -115,7 +115,7 @@
             <tbody>
                 {% for line in train_lines %}
                 <tr>
-                    <td>{{ line.Linea }}</td>
+                    <td>{{ line.Lines }}</td>
                     <td>
                         {% if line.Stations %}
                             {{ line.Stations|join:", " }}

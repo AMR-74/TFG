@@ -52,62 +52,24 @@ def identify_line_times(option, timeZone):
             lineNumber = line["Lines"]
             stationsList = line["Stations"]
 
-            if timeZone[0] not in stationsList or timeZone[1] not in stationsList:
+            start_char = max(timeZone[0], stationsList[0])
+            end_char = min(timeZone[1], stationsList[-1])
+
+            if start_char >= end_char:
                 continue
 
-            indexOrg = stationsList.index(timeZone[0])
-            indexEnd = stationsList.index(timeZone[1])
+            i0 = stationsList.index(start_char)
+            i1 = stationsList.index(end_char)
 
-            if indexEnd <= indexOrg:
-                continue
+            valid = False
+            for i in range(i0, i1):
+                if timeZone[2] <= originalTimes[0][i] < timeZone[3]:
+                    valid = True
+                    break
 
-            # Filtering logic for time and station alignment
-            if (
-                (
-                    (ord(stationsList[-1]) >= ord(timeZone[0]) >= ord(stationsList[0]))
-                    or (
-                        ord(stationsList[0])
-                        <= ord(timeZone[1])
-                        <= ord(stationsList[-1])
-                    )
-                )
-                and (ord(stationsList[-1]) > ord(timeZone[0]))
-                and (stationsList[0] != timeZone[1])
-            ):
-                if (
-                    ord(stationsList[-1]) >= ord(timeZone[0]) >= ord(stationsList[0])
-                ) and (timeZone[2] <= originalTimes[0][indexOrg]):
-                    for i in range(0, len(originalTimes[0])):
-                        if (
-                            ord(timeZone[1])
-                            > (ord(stationsList[0]) + i)
-                            >= ord(stationsList[0])
-                        ):
-                            if timeZone[3] >= originalTimes[0][i] >= timeZone[2]:
-                                validLinesList.append(lineNumber)
-                                break
-                elif (ord(stationsList[0]) <= ord(timeZone[0])) and (
-                    timeZone[2] <= originalTimes[0][indexOrg]
-                ):
-                    for i in range(0, len(originalTimes[0])):
-                        if (
-                            ord(timeZone[1])
-                            > (ord(stationsList[0]) + i)
-                            >= ord(stationsList[0])
-                        ):
-                            if timeZone[3] >= originalTimes[0][i] >= timeZone[2]:
-                                validLinesList.append(lineNumber)
-                                break
-                elif ord(timeZone[1]) >= ord(stationsList[0]) >= ord(timeZone[0]):
-                    for i in range(0, len(originalTimes[0])):
-                        if (
-                            ord(timeZone[1])
-                            > (ord(stationsList[0]) + i)
-                            >= ord(timeZone[0])
-                        ):
-                            if timeZone[3] >= originalTimes[0][i] >= timeZone[2]:
-                                validLinesList.append(lineNumber)
-                                break
+            if valid:
+                validLinesList.append(lineNumber)
+                
         return validLinesList
 
 
@@ -156,6 +118,13 @@ def adjust_and_save(option, difference, lineData, collection, stationsTimes):
 
         for i, arrival in enumerate(lineData["Compressed_Timetable"][-1]):
             arrivalsList.append(arrival + difference)
+            
+            if ord(lineData["Stations"][0]) <= ord(CAPACITY_PARAMS["stationOrg"]):
+                station_key = chr(ord(CAPACITY_PARAMS["stationOrg"]) + i)
+            else:
+                station_key = chr(ord(lineData["Stations"][0]) + i)
+                
+            stationsTimes[station_key].append(arrival + difference)
 
 
 def compress_lines(sortedLines, timeZone):
@@ -313,17 +282,23 @@ def save_line(lineNumber, timeZone):
     for line in linesData:
         if line["Lines"] != lineNumber:
             continue
+            
         stationsList = line["Stations"]
-        if timeZone[0] not in stationsList or timeZone[1] not in stationsList:
+        
+        start_char = max(timeZone[0], stationsList[0])
+        end_char = min(timeZone[1], stationsList[-1])
+        
+        if start_char > end_char:
+            return 
+
+        i0 = stationsList.index(start_char)
+        i1 = stationsList.index(end_char)
+        
+        if i0 >= i1:
             return
 
-        i0 = stationsList.index(timeZone[0])
-        i1 = stationsList.index(timeZone[1])
-        if i1 <= i0:
-            return
-
-        depSlice = line["Timetable_Margins"][0][i0 : i1 + 1]
-        arrSlice = line["Timetable_Margins"][1][i0 : i1 + 1]
+        depSlice = line["Timetable_Margins"][0][i0 : i1]
+        arrSlice = line["Timetable_Margins"][1][i0 : i1]
 
         dbl.modify_entry(
             collection,

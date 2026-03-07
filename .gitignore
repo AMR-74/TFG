@@ -14,3 +14,9 @@ railSim/railSimulator/migrations/__pycache__/
 .env
 .yaml
 *.png
+*.yaml
+*.png
+*.png
+*.sqlite3
+*.sqlite3
+*.png
